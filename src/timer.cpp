@@ -16,6 +16,11 @@ Timer::Timer(int signal, int timeout, bool oneshot): m_bOneShot(oneshot)
 	m_nNsec = (timeout % 1000) * 1000000;
 }
 
+Timer::~Timer()
+{
+	timer_delete(m_timer);
+}
+
 void Timer::set()
 {
 	itimerspec its;

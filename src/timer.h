@@ -13,6 +13,7 @@ public:
 	// * oneshot - czy po wygaśnięciu Timer ma ponownie zacząć odliczać czas
 	// rzuca wyjątek runtime_error, jeżeli wystąpi błąd
 	Timer(int signal, int timeout, bool oneshot);
+	~Timer();
 	
 	// startuje Timer lub resetuje go, jeżeli już działa
 	// rzuca wyjątek runtime_error, jeżeli wystąpi błąd
