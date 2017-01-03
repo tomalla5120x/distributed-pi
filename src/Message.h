@@ -1,3 +1,5 @@
+#ifndef MESSAGE_H
+#define MESSAGE_H
 #include <stdint.h>
 
 /*
@@ -13,7 +15,8 @@ enum MessageType : uint8_t
 	MessageACK,
 	MessageClose,
 	MessageResult,
-	MessageWork
+	MessageWork,
+	MessageInvalid = -1
 };
 
 /**
@@ -69,3 +72,5 @@ private:
 	uint32_t	mSegmentID;
 	uint32_t	mSide;
 };
+
+#endif
