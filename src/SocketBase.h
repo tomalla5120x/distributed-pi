@@ -8,8 +8,9 @@
 #include <sys/types.h>
 #include <stdexcept>
 #include <signal.h>
-#include <sys/ioctly.h>
+#include <sys/ioctl.h>
 #include <errno.h>
+#include <unistd.h>
 #include "Message.h"
 
 typedef uint32_t IPAddress;
@@ -26,7 +27,7 @@ public:
 	/*
 	* Zamyka gniazdo.
 	*/
-	void close();
+	void closeSocket();
 	/*
 	* Wysyla podana wiadomosc na podany adres.
 	*/	
@@ -37,11 +38,14 @@ public:
 	*/
 	Message nextMessage(IPAddress* source_address, Port* source_port);
 
-
-protected:
 	struct sockaddr_in 	mSocketAddress;
 	int					mSocketFD;
 
-}
+	
+protected:
+	int htonMessage(Message message, char* buffer);
+	Message ntohMessage(char* message);
+	const int properMessageSize[8];
+};
 
 #endif

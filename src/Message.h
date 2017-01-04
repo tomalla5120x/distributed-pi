@@ -7,16 +7,16 @@
 * i w sumie nie wiem czy to cos pomoze - strukturki sa i tak paddowane - 1 + 4 + 8 + 4 + 4 = 21, paddowane do 24
 */
 enum MessageType : uint8_t
-{
-	MessageHeartbeat,
-	MessageHeartbeatACK,
-	MessageInterrupt,
-	MessageHello,
-	MessageACK,
-	MessageClose,
-	MessageResult,
-	MessageWork,
-	MessageInvalid = -1
+{						//wielkosci w bajtach dla typow:
+	MessageHeartbeat, 	// 1 bo tylko tag 1 bajtowy
+	MessageHeartbeatACK,// 1
+	MessageInterrupt,	// 1
+	MessageHello,		// 5 bo tag + sequence (int, 4)
+	MessageACK,			// 5 
+	MessageClose,		// 5
+	MessageResult,		// 17 bo tag + seq + points (longlong, 8) + segment_id (int, 4)
+	MessageWork,		// najbardziej dokokszony, 21
+	MessageInvalid = 0xFF // uh, nie powinien byc wyslany, ale 1
 };
 
 /**
