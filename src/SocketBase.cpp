@@ -1,4 +1,7 @@
+#include <arpa/inet.h>
+
 #include "SocketBase.h"
+
 //podpatrzone z SO
 #define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
 #define ntohll(x) ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
@@ -76,7 +79,7 @@ Message SocketBase::ntohMessage(char* message) {
 	switch(type)
 	{
 		case MessageHeartbeat: case MessageHeartbeatACK: case MessageInterrupt:
-			toReturn = Message(type); //nothing to see here
+			toReturn = Message(type);
 			break;
 		case MessageHello: case MessageACK: case MessageClose:
 			toReturn = Message(type, ntohl( *(uint32_t*)(message+1)) ); //zastanawiam sie, czy mozna to zrobic ladniej
@@ -104,7 +107,8 @@ Message SocketBase::ntohMessage(char* message) {
 
 int SocketBase::htonMessage(Message message, char* buffer) {
 	int size = 0;
-	//zanim zaczniesz sie kiziac po brodzie: passthrough.	
+	
+	//passthrough
 	switch(message.getTag())
 	{
 		case MessageWork:
@@ -126,3 +130,30 @@ int SocketBase::htonMessage(Message message, char* buffer) {
 	return size;
 }
 
+int SocketBase::getSocketDescriptor() const {
+	return mSocketFD;
+}
+
+/*
+* Konwertuje adres IP (host-order) na czytelny napis w standardowym dot-notation.
+* Napis jest alokowany statycznie - każde kolejne wywołanie nadpisuje bufor (patrz: inet_ntoa)
+*/
+char* SocketBase::iptostr(IPAddress ip)
+{
+	in_addr a;
+	a.s_addr = htonl(ip);
+	return inet_ntoa(a);
+}
+
+/*
+* Konwertuje napis w standardowym dot-notation na adres IP (host-order).
+* Zwraca true jeżeli konwersja się powiodła, false w przeciwnym razie.
+*/
+bool SocketBase::strtoip(char* str, IPAddress* ip)
+{
+	in_addr a;
+	if(!inet_aton(str, &a))
+		return false;
+	*ip = (IPAddress)(ntohl(a.s_addr));
+	return true;
+}

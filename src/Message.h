@@ -8,15 +8,15 @@
 */
 enum MessageType : uint8_t
 {						//wielkosci w bajtach dla typow:
-	MessageHeartbeat, 	// 1 bo tylko tag 1 bajtowy
-	MessageHeartbeatACK,// 1
-	MessageInterrupt,	// 1
-	MessageHello,		// 5 bo tag + sequence (int, 4)
-	MessageACK,			// 5 
-	MessageClose,		// 5
-	MessageResult,		// 17 bo tag + seq + points (longlong, 8) + segment_id (int, 4)
-	MessageWork,		// najbardziej dokokszony, 21
-	MessageInvalid = 0xFF // uh, nie powinien byc wyslany, ale 1
+	MessageHeartbeat = 0, 	// 1 bo tylko tag 1 bajtowy
+	MessageHeartbeatACK = 1,// 1
+	MessageInterrupt = 2,	// 1
+	MessageHello = 3,		// 5 bo tag + sequence (int, 4)
+	MessageACK = 4,			// 5 
+	MessageClose = 5,		// 5
+	MessageResult = 6,		// 17 bo tag + seq + points (longlong, 8) + segment_id (int, 4)
+	MessageWork = 7,		// najbardziej dokokszony, 21
+	MessageInvalid = 0xFF // nie powinien byc wyslany, ale 1
 };
 
 /**
@@ -30,6 +30,8 @@ public:
 	uint64_t	getPointsHit() 	{ return mPointsHit; };
 	uint32_t	getSegmentID()	{ return mSegmentID; };
 	uint32_t	getSide()		{ return mSide; };
+
+	Message(): mTag(MessageInvalid) {};
 
 	/**
 	* Do uzycia z MessageInterrupt, Heartbeat, HeartbeatACK

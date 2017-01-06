@@ -37,15 +37,28 @@ public:
 	* Jesli nie ma zadnej wiadomosci, address bedzie rowny 0, a zwrocony Message bedzie mial tag MessageInvalid.
 	*/
 	Message nextMessage(IPAddress* source_address, Port* source_port);
-
-	struct sockaddr_in 	mSocketAddress;
-	int					mSocketFD;
-
 	
+	/*
+	* Konwertuje adres IP (host-order) na czytelny napis w standardowym dot-notation.
+	* Napis jest alokowany statycznie - każde kolejne wywołanie nadpisuje bufor (patrz: inet_ntoa)
+	*/
+	static char* iptostr(IPAddress);
+	
+	/*
+	* Konwertuje napis w standardowym dot-notation na adres IP (host-order).
+	* Zwraca true jeżeli konwersja się powiodła, false w przeciwnym razie.
+	*/
+	static bool strtoip(char* str, IPAddress* ip);
+
 protected:
 	int htonMessage(Message message, char* buffer);
 	Message ntohMessage(char* message);
 	const int properMessageSize[8];
+	
+	int getSocketDescriptor() const;
+	
+private:
+	int mSocketFD;
 };
 
 #endif

@@ -9,7 +9,7 @@ public:
 	SocketPassive();
 	//binduje z zadanym portem (jesli sie da oczywiscie)
 	SocketPassive(Port port);
-	Port getPort() { return mPort; };
+	Port getPort() const { return mPort; }
 
 private:
 	Port mPort;
