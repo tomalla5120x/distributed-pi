@@ -24,6 +24,9 @@ public:
 	* Rzuca wyjatek przy bledzie.
 	*/
 	SocketBase();
+	
+	virtual ~SocketBase();
+	
 	/*
 	* Zamyka gniazdo.
 	*/

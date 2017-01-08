@@ -44,7 +44,6 @@ SolutionManager::SolutionManager(uint32_t mSide, uint64_t nPoints, uint32_t digi
     side = mSide;
     points = nPoints;
     uint64_t arraySize = side * side;
-    cout << arraySize << endl;
     squareSegments = new Segment[arraySize];
     this->digitsAfterDot = digitsAfterDot;
 }

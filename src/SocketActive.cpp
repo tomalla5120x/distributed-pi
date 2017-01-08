@@ -23,7 +23,7 @@ Message SocketActive::next(){
 	Port srcPort = 0;
 	Message toRet = nextMessage(&srcIP, &srcPort);
 	
-	if(srcIP != mMainServerIP || srcPort != mMainServerPort)
-		return Message(MessageInvalid);
-	return toRet;
+	if(toRet.getTag() == NoMessage || (srcIP == mMainServerIP && srcPort == mMainServerPort))
+		return toRet;
+	return Message(MessageInvalid);
 }

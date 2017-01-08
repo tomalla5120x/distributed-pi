@@ -3,7 +3,7 @@
 
 #include "server_manager.h"
 #include "connection_base.h"
-#include "SocketActive.h"
+#include "SocketPassive.h"
 #include "timer.h"
 
 class SolutionManager;

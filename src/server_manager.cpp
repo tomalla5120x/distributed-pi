@@ -3,6 +3,8 @@
 
 #define POOL_SIZE 10
 
+ServerManager::ServerManager(SocketPassive& socket): m_socket(socket) {}
+
 void ServerManager::handleMessage(Message& message, const IPAddress ip, const Port port)
 {
 	// wywoływane z poziomu pętli obsługi sygnałów, kiedy nadejdzie jakaś wiadomość.
@@ -12,25 +14,19 @@ void ServerManager::handleMessage(Message& message, const IPAddress ip, const Po
 	// (np. jak Hello, to tworzy nowy Connection i jemu przekazują wiadomość Hello do obsługi,
 	// w przeciwnym razie ignorują go).
 	
-	ConnectionMain* pConn = m_pool.getConnection(ip, port);
+	SID sid = SID{ip, port};
+	ConnectionMain* pConn = m_pool.getConnection(sid);
 	
 	if(pConn == nullptr)
 	{
 		if(m_pool.isFull() || message.getTag() != MessageHello)
 			return;
 		
-		//TODO: stwórz nowy obiekt ConnectionMain
-		//pConn = new ConnectionMain(...);
-		
+		pConn = new ConnectionMain(m_socket, sid);
 		m_pool.addConnection(pConn);
-		
-		//TODO: przekaż wiadomość MessageHello obiektowi ConnectionMain
-		//pConn->handleMessage(message);
-	} else
-	{
-		//TODO: przekaż wiadomość MessageHello obiektowi ConnectionMain
-		//pConn->handleMessage(message);
 	}
+	
+	pConn->handleMessage(message);
 }
 
 void ServerManager::handleTimeout()
@@ -41,9 +37,8 @@ void ServerManager::handleTimeout()
 	// (np. usunąć ConnectionMain z puli, przypisać komuś innemu podproblem itd.).
 	
 	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
-		//TODO:
-		//if(pConn->isTimeoutExpired())
-		//	return !pConn->handleTimeout();
+		if(pConn->isTimeoutExpired())
+			return !pConn->handleTimeout();
 		
 		return false;
 	});
@@ -56,8 +51,7 @@ void ServerManager::handleHeartbeatTimeout()
 	// obiektów ConnectionMain wygasły i coś z nimi robimy (kasujemy ConnectionMain z puli, sprzątamy po nim itd.).
 	
 	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
-		//TODO:
-		return false /*pConn->isHeartbeatTimeoutExpired()*/;
+		return pConn->isHeartbeatTimeoutExpired();
 	});
 }
 
@@ -67,8 +61,7 @@ void ServerManager::handleInterrupt()
 	// Wysyła wszystkim serwerom roboczym wiadomość Interrupt.
 	
 	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
-		//TODO:
-		//pConn->sendMessage(Message(MessageInterrupt));
+		pConn->sendInterrupt();
 		
 		return true;
 	});
@@ -80,8 +73,7 @@ void ServerManager::finalize()
 	// zostały już dostarczone, serwery robocze nie są potrzebne.
 
 	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
-		//TODO:
-		//pConn->sendMessage(Message(MessageClose));
+		pConn->sendClose();
 		
 		return false;
 	});
@@ -110,12 +102,7 @@ bool ConnectionPool::isFull() const
 
 void ConnectionPool::addConnection(ConnectionMain* pConn)
 {
-	//TODO: wydobycie IPAddress oraz Port z pConn
-	IPAddress ip = 666;
-	Port port = 666;
-	
-	//m_map[SID{ip, port}] = std::unique_ptr<ConnectionMain>(pConn);
-	m_map[SID{ip, port}] = pConn;
+	m_map[pConn->getSID()] = pConn;
 }
 
 void ConnectionPool::deleteConnectionIf(std::function<bool(ConnectionMain*)> predicate)
@@ -130,15 +117,6 @@ void ConnectionPool::deleteConnectionIf(std::function<bool(ConnectionMain*)> pre
 		}
 		else
 			++it;
-		
-		/*
-		std::unique_ptr<ConnectionMain>* pP = &(it->second);
-		
-		if(predicate(pP->get()))
-			it = m_map.erase(it);
-		else
-			++it;
-		*/
 	}
 }
 

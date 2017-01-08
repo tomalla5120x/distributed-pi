@@ -16,6 +16,7 @@ enum MessageType : uint8_t
 	MessageClose = 5,		// 5
 	MessageResult = 6,		// 17 bo tag + seq + points (longlong, 8) + segment_id (int, 4)
 	MessageWork = 7,		// najbardziej dokokszony, 21
+	NoMessage = 0xFE,		// brak wiadomosci
 	MessageInvalid = 0xFF // nie powinien byc wyslany, ale 1
 };
 

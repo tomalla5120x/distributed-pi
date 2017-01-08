@@ -54,6 +54,8 @@ private:
 class ServerManager
 {	
 public:
+	ServerManager(SocketPassive& socket);
+	
 	void handleMessage(Message& message, const IPAddress ip, const Port port);
 	void handleTimeout();
 	void handleHeartbeatTimeout();
@@ -61,6 +63,7 @@ public:
 	void finalize();
 	
 private:
+	SocketPassive& m_socket;
 	ConnectionPool m_pool;
 };
 

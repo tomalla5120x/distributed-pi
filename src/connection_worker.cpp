@@ -184,6 +184,10 @@ void ConnectionWorker::sendResult()
     stateHandler = &ConnectionWorker::awaitingWorkOrACK;
 }
 
+void ConnectionWorker::sendInterrupt() {
+	socket.send(Message(MessageInterrupt));
+}
+
 int ConnectionWorker::getTimerSignal() {
 	return timerSignal;
 }

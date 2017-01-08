@@ -63,6 +63,7 @@ public:
     bool handleHeartbeatTimeout() override;
 
     void sendResult();
+    void sendInterrupt();
     
     static int getTimerSignal();
 };

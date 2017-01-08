@@ -19,6 +19,11 @@ SocketBase::SocketBase() : properMessageSize{1, 1, 1, 5, 5, 5, 17, 21} {
 		throw std::runtime_error("Error enabling async signals!");	
 }
 
+SocketBase::~SocketBase()
+{
+	closeSocket();
+}
+
 void SocketBase::closeSocket() {
 	close(mSocketFD);
 }
@@ -52,7 +57,7 @@ Message SocketBase::nextMessage(IPAddress* source_address, Port* source_port) {
 	{
 		int errval = errno;
 		if(errval == EWOULDBLOCK || errval == EAGAIN) //brak wiadomosci - zwroc MessageInvalid
-			return Message(MessageInvalid);
+			return Message(NoMessage);
 		else
 			throw std::runtime_error("Error receiving message, other than no value! "+errval);
 	}

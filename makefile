@@ -6,19 +6,19 @@ LINKFLAGS = -g -Wall -Wextra -O3 -lrt -std=c++11
 
 OBJS = bin/timer.o bin/SocketPassive.o bin/SocketActive.o bin/SocketBase.o bin/subproblem.o bin/segment.o bin/solution_manager.o bin/worker_thread.o bin/server_manager.o bin/connection_main.o bin/connection_worker.o
 
-all: server client
+all: server_main server_worker
 
-server: $(OBJS) bin/server.o
-	$(LINK) $(LINKFLAGS) $(OBJS) bin/server.o -o server
+server_main: $(OBJS) bin/server_main.o
+	$(LINK) $(LINKFLAGS) $(OBJS) bin/server_main.o -o server_main
 
-client: $(OBJS) bin/client.o
-	$(LINK) $(LINKFLAGS) $(OBJS) bin/client.o -o client
+server_worker: $(OBJS) bin/server_worker.o
+	$(LINK) $(LINKFLAGS) $(OBJS) bin/server_worker.o -o server_worker
 
-bin/server.o: src/server.cpp
-	$(CC) $(CCFLAGS) -c src/server.cpp -o bin/server.o
+bin/server_main.o: src/server_main.cpp
+	$(CC) $(CCFLAGS) -c src/server_main.cpp -o bin/server_main.o
 
-bin/client.o: src/client.cpp
-	$(CC) $(CCFLAGS) -c src/client.cpp -o bin/client.o
+bin/server_worker.o: src/server_worker.cpp
+	$(CC) $(CCFLAGS) -c src/server_worker.cpp -o bin/server_worker.o
 	
 bin/timer.o: src/timer.cpp
 	$(CC) $(CCFLAGS) -c src/timer.cpp -o bin/timer.o
