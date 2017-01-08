@@ -15,7 +15,7 @@ class ConnectionMain : ConnectionBase
     static const int heartbeatTimeoutMs = 3000;
     static const int maxRepeats = 5;
     
-    SocketActive& socket;
+    SocketPassive& socket;
     SID worker;
 
     Timer responseTimer;
@@ -41,7 +41,7 @@ protected:
     void sendSubproblem();
 
 public:
-    ConnectionMain(SocketActive& socket, SID worker);
+    ConnectionMain(SocketPassive& socket, SID worker);
     virtual ~ConnectionMain();
 
     void startTimeout() override;
@@ -58,6 +58,8 @@ public:
     bool handleHeartbeatTimeout() override;
 
     void assignSubproblem();
+    void sendInterrupt();
+    void sendClose();
     SID getSID() const;
     
     static int getTimerSignal();

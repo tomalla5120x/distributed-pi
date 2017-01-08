@@ -102,7 +102,7 @@ ConnectionMain::~ConnectionMain()
     heartbeatTimer.unset();
 }
 
-ConnectionMain::ConnectionMain(SocketActive& socket, SID worker) :
+ConnectionMain::ConnectionMain(SocketPassive& socket, SID worker) :
     socket(socket), worker(worker),
     responseTimer(timerSignal, responseTimeoutMs, true),
     heartbeatTimer(timerSignal, heartbeatTimeoutMs, true),
@@ -136,7 +136,7 @@ bool ConnectionMain::handleTimeout()
         return false;
     }
 
-    socket.send(lastMessageSent);
+    socket.sendMessage(lastMessageSent, worker.ip, worker.port);
 
     responseTimer.set();
 
@@ -193,7 +193,7 @@ bool ConnectionMain::handleMessage(Message message)
     }
 
     if(message.getSequence() == lastRecvMessageSeq) {
-        socket.send(lastMessageSent);
+        socket.sendMessage(lastMessageSent, worker.ip, worker.port);
 
         return true;
     }
@@ -210,6 +210,16 @@ void ConnectionMain::assignSubproblem()
     }
 
     sendSubproblem();
+}
+
+void ConnectionMain::sendInterrupt()
+{
+	 socket.sendMessage(Message(MessageInterrupt), worker.ip, worker.port);
+}
+
+void ConnectionMain::sendClose()
+{
+	socket.sendMessage(Message(MessageClose, lastRecvMessageSeq+1), worker.ip, worker.port);
 }
 
 SID ConnectionMain::getSID() const
