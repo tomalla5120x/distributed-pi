@@ -18,10 +18,10 @@ using namespace std;
 #include "connection_worker.h"
 #include "SocketActive.h"
 
-const int SIGNAL_TIMER  = ConnectionWorker::getTimerSignal();
-const int SIGNAL_THREAD = WorkerThread::getThreadSignal();
-const int SIGNAL_HBTIMEOUT = -1; //TODO:
-	
+const int SIGNAL_TIMEOUT   = ConnectionWorker::getTimerSignal();
+const int SIGNAL_HB        = ConnectionWorker::getHeartbeatDelaySignal();
+const int SIGNAL_HBTIMEOUT = ConnectionWorker::getHeartbeatExpectSignal();
+const int SIGNAL_THREAD    = WorkerThread::getThreadSignal();
 	
 const int32_t MIN_PORT = 1;
 const int32_t MAX_PORT = (std::numeric_limits<uint16_t>::max());
@@ -62,7 +62,9 @@ int main(int argc, char* argv[])
 	sigemptyset(&set);
 	sigaddset(&set, SIGIO);
 	sigaddset(&set, SIGINT);
-	sigaddset(&set, SIGNAL_TIMER);
+	sigaddset(&set, SIGNAL_TIMEOUT);
+	sigaddset(&set, SIGNAL_HBTIMEOUT);
+	sigaddset(&set, SIGNAL_HB);
 	sigaddset(&set, SIGNAL_THREAD);
 	sigprocmask(SIG_BLOCK, &set, NULL);
 	
@@ -89,16 +91,24 @@ int main(int argc, char* argv[])
 						return EXIT_SUCCESS;
 					}
 			}
-		} else if(signal == SIGNAL_TIMER)
+		} else if(signal == SIGNAL_TIMEOUT)
 		{
 			connection.handleTimeout();
+		} else if(signal == SIGNAL_HB)
+		{
+			connection.handleHeartbeat();
+		} else if(signal == SIGNAL_HBTIMEOUT && !connection.handleHeartbeatTimeout())
+		{
+			cout << "Serwer glowny nie odpowiada." << endl;
+			return EXIT_FAILURE;
 		} else if(signal == SIGNAL_THREAD)
 		{
+			cout << "CATCH" << endl;
 			connection.sendResult();
-		} else if(signal == SIGNAL_HBTIMEOUT || signal == SIGINT)
+		} else if(signal == SIGINT)
 		{
 			connection.sendInterrupt();
-			cout << "Interrupt." << endl;
+			cout << "Przerwanie." << endl;
 			return EXIT_FAILURE;
 		}
 	}

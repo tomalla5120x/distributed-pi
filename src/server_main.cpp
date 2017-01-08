@@ -27,7 +27,8 @@ const int64_t MIN_POINTS = 1;
 const int32_t MAX_DIGITS = (std::numeric_limits<int32_t>::max());
 const int32_t MIN_DIGITS = 0;
 
-const int SIGNAL_TIMER = ConnectionMain::getTimerSignal();
+const int SIGNAL_TIMEOUT  = ConnectionMain::getTimerSignal();
+const int SIGNAL_HBTIMEOUT = ConnectionMain::getHeartbeatTimerSignal();
 
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax);
 bool handleParameter(int64_t& value, char* szValue, string strParam, int64_t nMin, int64_t nMax);
@@ -72,7 +73,8 @@ int main(int argc, char* argv[])
 	sigemptyset(&set);
 	sigaddset(&set, SIGIO);
 	sigaddset(&set, SIGINT);
-	sigaddset(&set, SIGNAL_TIMER);
+	sigaddset(&set, SIGNAL_TIMEOUT);
+	sigaddset(&set, SIGNAL_HBTIMEOUT);
 	sigprocmask(SIG_BLOCK, &set, NULL);
 	
 	unique_ptr<SocketPassive> socket;
@@ -93,6 +95,7 @@ int main(int argc, char* argv[])
 	
 	ServerManager serverManager(*(socket.get()));
 	SolutionManager& solutionManager = SolutionManager::getInstance();
+	solutionManager.initialize();
 	
 	cout << "Serwer nasluchuje na porcie: " << socket->getPort() << endl;
 	
@@ -115,9 +118,11 @@ int main(int argc, char* argv[])
 				if(message.getTag() != MessageInvalid)
 					serverManager.handleMessage(message, ip, port);
 			}
-		} else if(signal == SIGNAL_TIMER)
+		} else if(signal == SIGNAL_TIMEOUT)
 		{
 			serverManager.handleTimeout();
+		} else if(signal == SIGNAL_HBTIMEOUT)
+		{
 			serverManager.handleHeartbeatTimeout();
 		} else if(signal == SIGINT)
 		{
@@ -130,7 +135,12 @@ int main(int argc, char* argv[])
 	serverManager.finalize();
 	socket->closeSocket();
 	
-	cout << "Wyznaczone przyblizenie liczby PI: " << endl << endl << solutionManager.getResult();
+	uint64_t a, b;
+	string strResult = solutionManager.getResult(&a, &b);
+	
+	cout << "Wyznaczone przyblizenie liczby PI: " << endl << endl;
+	cout << a << " / " << b << endl << endl;
+	cout << strResult << endl;
 	
 	return EXIT_SUCCESS;
 }

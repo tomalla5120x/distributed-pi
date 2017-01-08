@@ -187,7 +187,7 @@ string SolutionManager::decimalExpansion(uint64_t a, uint64_t b, uint32_t digits
     return ss.str();
 }
 
-string SolutionManager::getResult()
+string SolutionManager::getResult(uint64_t* a, uint64_t* b)
 {
     uint64_t chosenPoints = points * side * side; //suma wylosowanych punktow we wszystkich segmentach
     uint64_t pointsHitSum = 0;
@@ -196,6 +196,10 @@ string SolutionManager::getResult()
         pointsHitSum += squareSegments[i].getPointsHit();
     }
     uint64_t dividend = 4 * pointsHitSum; // dzielna
+    
+    *a = dividend;
+    *b = chosenPoints;
+    
     return decimalExpansion(dividend, chosenPoints, digitsAfterDot);
 }
 Subproblem* SolutionManager::pop(SID worker)

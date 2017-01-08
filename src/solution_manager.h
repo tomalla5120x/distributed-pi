@@ -38,7 +38,7 @@ public:
     void assign(uint32_t segmentId, SID worker);
     void unassign(uint32_t segmentId);
     bool solved();
-    std::string getResult();
+    std::string getResult(uint64_t* a, uint64_t* b);
     Subproblem* pop(SID worker);
     void print(); //do debugowania
 };
