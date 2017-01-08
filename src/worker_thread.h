@@ -4,7 +4,7 @@
 #include <iostream>
 #ifndef WORKER_THREAD_H
 #define WORKER_THREAD_H
-void signalHandler(int sig);
+//void signalHandler(int sig);
 
 typedef struct result
 {
@@ -15,6 +15,8 @@ typedef struct result
 class WorkerThread
 {
 private:
+    static const int threadSignal = SIGUSR2;
+	
     uint32_t segmentId;
     uint32_t side;
     uint64_t points; //liczba punktow do wylosowania
@@ -31,6 +33,8 @@ public:
     void stop();
     bool isRunning();
     WorkerResult getResult();
+    
+    static int getThreadSignal();
 };
 
 #endif // WORKER_THREAD_H

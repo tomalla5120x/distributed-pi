@@ -1,5 +1,8 @@
 #include "worker_thread.h"
 #include "segment.h"
+
+#include <sys/types.h>
+#include <unistd.h>
 #include <chrono>
 #include <stdexcept>
 using namespace std;
@@ -50,9 +53,15 @@ void WorkerThread::count()
 
 void* WorkerThread::threadEntry(void* myThis)
 {
+	// zamaskowanie sygnału threadSignal, żeby odebrał go główny wątek
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, threadSignal);
+	pthread_sigmask(SIG_BLOCK, &set, NULL);
+	
     ((WorkerThread*) myThis)->count();
 
-    struct sigaction action;
+    /*struct sigaction action;
     action.sa_handler = signalHandler; //pewnie petla serwera roboczego
     action.sa_flags = 0;
     if(sigemptyset(&action.sa_mask) != 0)
@@ -64,6 +73,11 @@ void* WorkerThread::threadEntry(void* myThis)
         throw runtime_error("Error setting sigaction");
     }
     if(raise(SIGUSR2) != 0)
+    {
+        throw runtime_error("Error sendind signal from calculating thread");
+    }*/
+    
+    if(kill(getpid(), threadSignal) != 0)
     {
         throw runtime_error("Error sendind signal from calculating thread");
     }
@@ -111,4 +125,8 @@ WorkerResult WorkerThread::getResult()
     result.pointsHit = pointsHit;
     running = false;
     return result;
+}
+
+int WorkerThread::getThreadSignal() {
+	return threadSignal;
 }

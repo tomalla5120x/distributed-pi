@@ -47,7 +47,7 @@ protected:
 
 public:
     ConnectionWorker(SocketActive& socket);
-    ~ConnectionWorker();
+    virtual ~ConnectionWorker();
 
     void startTimeout() override;
     void stopTimeout() override;
@@ -63,6 +63,8 @@ public:
     bool handleHeartbeatTimeout() override;
 
     void sendResult();
+    
+    static int getTimerSignal();
 };
 
 #endif // SERVERCONNECTION_H

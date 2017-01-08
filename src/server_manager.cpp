@@ -1,4 +1,5 @@
 #include "server_manager.h"
+#include "connection_main.h"
 
 #define POOL_SIZE 10
 
@@ -99,7 +100,7 @@ ConnectionMain* ConnectionPool::getConnection(const SID sid)
 {
 	if(m_map.count(sid) == 0)
 		return nullptr;
-	return m_map[sid].get();
+	return m_map[sid];
 }
 
 bool ConnectionPool::isFull() const
@@ -112,19 +113,37 @@ void ConnectionPool::addConnection(ConnectionMain* pConn)
 	//TODO: wydobycie IPAddress oraz Port z pConn
 	IPAddress ip = 666;
 	Port port = 666;
-	m_map[SID{ip, port}] = std::unique_ptr<ConnectionMain>(pConn);
+	
+	//m_map[SID{ip, port}] = std::unique_ptr<ConnectionMain>(pConn);
+	m_map[SID{ip, port}] = pConn;
 }
 
 void ConnectionPool::deleteConnectionIf(std::function<bool(ConnectionMain*)> predicate)
 {
 	ConnectionMap::iterator it = m_map.begin();
 	while(it != m_map.end())
-	{
+	{	
+		if(predicate(it->second))
+		{
+			delete it->second;
+			it = m_map.erase(it);
+		}
+		else
+			++it;
+		
+		/*
 		std::unique_ptr<ConnectionMain>* pP = &(it->second);
 		
 		if(predicate(pP->get()))
 			it = m_map.erase(it);
 		else
 			++it;
+		*/
 	}
+}
+
+ConnectionPool::~ConnectionPool()
+{
+	for(ConnectionMap::iterator it = m_map.begin(); it != m_map.end(); ++it)
+		delete it->second;
 }

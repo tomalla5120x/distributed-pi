@@ -20,7 +20,7 @@ bool ConnectionWorker::awaitingWorkOrACK(Message message)
     return true;
 }
 
-bool ConnectionWorker::working(Message message)
+bool ConnectionWorker::working(Message)
 {
     return true;
 }
@@ -81,12 +81,12 @@ void ConnectionWorker::stopTimeout()
 
 bool ConnectionWorker::isTimeoutExpired() const
 {
-    return responseTimer.isExpired();
+    return responseTimer.isRunning();
 }
 
 void ConnectionWorker::startHeartbeatTimeout()
 {
-    heartbeatTimer.isExpired();
+    heartbeatTimer.isRunning();
 }
 
 void ConnectionWorker::stopHeartbeatTimeout()
@@ -101,7 +101,7 @@ void ConnectionWorker::resetHeartbeatTimeout()
 
 bool ConnectionWorker::isHeartbeatTimeoutExpired() const
 {
-    return heartbeatTimer.isExpired();
+    return heartbeatTimer.isRunning();
 }
 
 bool ConnectionWorker::handleMessage(Message message)
@@ -182,4 +182,8 @@ void ConnectionWorker::sendResult()
     sendMessage(Message(MessageResult, lastRecvMessageSeq + 1, result.segmentId, result.pointsHit));
 
     stateHandler = &ConnectionWorker::awaitingWorkOrACK;
+}
+
+int ConnectionWorker::getTimerSignal() {
+	return timerSignal;
 }

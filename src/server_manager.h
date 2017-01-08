@@ -7,9 +7,6 @@
 #include "SocketActive.h"
 #include "SocketPassive.h"
 
-//TODO: nie mógł to być zwykły forward-declaration, bo unique_ptr wymagał pełnej deklaracji.
-class ConnectionMain {};
-
 typedef struct {
 	IPAddress ip;
 	Port port;
@@ -27,11 +24,12 @@ struct _SIDCompare
 	}
 };
 
-typedef std::map<SID, std::unique_ptr<ConnectionMain>, _SIDCompare> ConnectionMap;
-
+class ConnectionMain;
 class ConnectionPool
 {
 public:
+	~ConnectionPool();
+	
 	// zwraca połączenie identyfikowane przez adres IP i port lub przez ServerID
 	// zwraca nullptr jeżeli takiego połączenia nie ma
 	ConnectionMain* getConnection(const IPAddress ip, const Port port);
@@ -48,6 +46,8 @@ public:
 	void deleteConnectionIf(std::function<bool(ConnectionMain*)> predicate);
 	
 private:
+	typedef std::map<SID, ConnectionMain*, _SIDCompare> ConnectionMap;
+
 	ConnectionMap m_map;
 };
 

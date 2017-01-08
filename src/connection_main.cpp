@@ -59,7 +59,7 @@ bool ConnectionMain::awaitingResult(Message message)
     return true;
 }
 
-bool ConnectionMain::standingBy(Message message)
+bool ConnectionMain::standingBy(Message)
 {
     // wiadomości wysłane na skutek timeoutu po stronie serwera roboczego
     // powinny zostać obsłużone w handleMessage()
@@ -122,7 +122,7 @@ void ConnectionMain::stopTimeout()
 
 bool ConnectionMain::isTimeoutExpired() const
 {
-    return responseTimer.isExpired();
+    return responseTimer.isRunning();
 }
 
 bool ConnectionMain::handleTimeout()
@@ -169,13 +169,13 @@ void ConnectionMain::resetHeartbeatTimeout()
 
 bool ConnectionMain::isHeartbeatTimeoutExpired() const
 {
-    return heartbeatTimer.isExpired();
+    return heartbeatTimer.isRunning();
 }
 
 bool ConnectionMain::handleMessage(Message message)
 {
     if(message.getTag() == MessageHeartbeat && heartbeatTimer.isRunning()) {
-        socket.sendMessage(MessageHeartbeat, worker.ip, worker.port);
+        socket.sendMessage(MessageHeartbeatACK, worker.ip, worker.port);
 
         heartbeatTimer.set();
     }
@@ -210,4 +210,13 @@ void ConnectionMain::assignSubproblem()
     }
 
     sendSubproblem();
+}
+
+SID ConnectionMain::getSID() const
+{
+	return worker;
+}
+
+int ConnectionMain::getTimerSignal() {
+	return timerSignal;
 }

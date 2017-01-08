@@ -1,15 +1,10 @@
-#include <cstdint>
 #ifndef SUBPROBLEM_H
 #define SUBPROBLEM_H
 
-enum SubproblemState {UNASSIGNED, ASSIGNED_PENDING, ASSIGNED, SOLVED};
+#include <cstdint>
+#include "server_manager.h"
 
-//typedef uint32_t IPAddress;
-//typedef uint16_t Port;
-//typedef struct {
-//	IPAddress ip;
-//	Port port;
-//} SID;
+enum SubproblemState {UNASSIGNED, ASSIGNED_PENDING, ASSIGNED, SOLVED};
 
 class Subproblem
 {

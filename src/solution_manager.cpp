@@ -3,6 +3,29 @@
 #include <sstream>
 using namespace std;
 
+bool SolutionManager::initialized = false;
+uint32_t SolutionManager::initSide = 0;
+uint32_t SolutionManager::initDigits = 0;
+uint64_t SolutionManager::initPoints = 0;
+
+SolutionManager& SolutionManager::getInstance()
+{
+	if(!initialized)
+		throw runtime_error("SolutionManager not configured!");
+	
+	static SolutionManager instance(initSide, initPoints, initDigits);
+	return instance;
+}
+
+void SolutionManager::configure(uint32_t mSide, uint64_t nPoints, uint32_t digitsAfterDot)
+{
+	initialized = true;
+	
+	initSide = mSide;
+	initDigits = digitsAfterDot;
+    initPoints = nPoints;
+}
+
 SolutionManager::SolutionManager(uint32_t mSide, uint64_t nPoints, uint32_t digitsAfterDot)
 {
     if(mSide == 0 || mSide > MAX_SIDE_VALUE)

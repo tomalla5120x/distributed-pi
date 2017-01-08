@@ -1,6 +1,7 @@
 #ifndef CONNECTIONMAIN_H
 #define CONNECTIONMAIN_H
 
+#include "server_manager.h"
 #include "connection_base.h"
 #include "SocketActive.h"
 #include "timer.h"
@@ -41,7 +42,7 @@ protected:
 
 public:
     ConnectionMain(SocketActive& socket, SID worker);
-    ~ConnectionMain();
+    virtual ~ConnectionMain();
 
     void startTimeout() override;
     void stopTimeout() override;
@@ -57,6 +58,9 @@ public:
     bool handleHeartbeatTimeout() override;
 
     void assignSubproblem();
+    SID getSID() const;
+    
+    static int getTimerSignal();
 };
 
 
