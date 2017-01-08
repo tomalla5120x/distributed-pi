@@ -9,13 +9,13 @@ bool ConnectionWorker::awaitingWorkOrACK(Message message)
         workerThread.reset(new WorkerThread(message.getSegmentID(), message.getSide(), message.getPoints()));
         workerThread.get()->start();
 
-        sendMessage(MessageACK, false);
+        sendMessage(Message(MessageACK, nextSequence), false);
 
         stateHandler = &ConnectionWorker::working;
     }
 
-    heartbeatMode = DELAY;
     heartbeatTimer.set();
+    heartbeatTimeoutTimer.set();
 
     return true;
 }
@@ -34,17 +34,17 @@ bool ConnectionWorker::standingBy(Message message)
     workerThread.reset(new WorkerThread(message.getSegmentID(), message.getSide(), message.getPoints()));
     workerThread.get()->start();
 
-    sendMessage(MessageACK);
+    sendMessage(Message(MessageACK, nextSequence), false);
 
-    heartbeatMode = DELAY;
     heartbeatTimer.set();
+    heartbeatTimeoutTimer.set();
 
     stateHandler = &ConnectionWorker::working;
 	
 	return true;
 }
 
-void ConnectionWorker::sendMessage(Message message, bool setTimer)
+void ConnectionWorker::sendMessage(Message message, bool setTimer, bool resend)
 {
     socket.send(message);
     lastMessageSent = message;
@@ -52,20 +52,26 @@ void ConnectionWorker::sendMessage(Message message, bool setTimer)
     if(setTimer) {
         responseTimer.set();
     }
+
+    if(!resend) {
+        nextSequence++;
+    }
 }
 
 ConnectionWorker::ConnectionWorker(SocketActive &socket)
     : socket(socket),
       responseTimer(timerSignal, responseTimeoutMs, true),
-      heartbeatTimer(timerSignal, heartbeatTimeoutMs, true)
+      heartbeatTimeoutTimer(heartbeatExpectTimerSignal, heartbeatTimeoutMs, true),
+      heartbeatTimer(heartbeatDelayTimerSignal, heartbeatMs, false)
 {
-    Message hello(MessageHello, lastRecvMessageSeq + 1);
+    Message hello(MessageHello, nextSequence);
     sendMessage(hello);
 }
 
 ConnectionWorker::~ConnectionWorker()
 {
     responseTimer.unset();
+    heartbeatTimeoutTimer.unset();
     heartbeatTimer.unset();
 }
 
@@ -106,35 +112,41 @@ bool ConnectionWorker::isHeartbeatTimeoutExpired() const
 
 bool ConnectionWorker::handleMessage(Message message)
 {
-    if(message.getTag() == MessageHeartbeatACK && heartbeatTimer.isRunning() && heartbeatMode == EXPECT) {
-        heartbeatRepeatCount = maxHeartbeatRepeats;
+    auto tag = message.getTag();
+    auto seq = message.getSequence();
 
-        heartbeatMode = DELAY;
-        heartbeatTimer.set();
+    if(tag == MessageHeartbeatACK && heartbeatTimeoutTimer.isRunning()) {
+        heartbeatTimeoutTimer.set();
 
         return true;
     }
 
-    if(message.getTag() == MessageInterrupt || message.getTag() == MessageClose) {
+    if(tag == MessageInterrupt) {
         return false;
     }
 
-    auto seq = message.getSequence();
-
-    if(seq < lastRecvMessageSeq) {
+    // zignorowanie wiadomości o numerze sekw. niższym niż w ostatniej otrzymanej wiadomości
+    if(seq < lastMessageRecv.getSequence()) {
         return true;
     }
 
-    if(seq == lastRecvMessageSeq) {
-        sendMessage(lastMessageSent);
+    // ponowne wysłanie wiadomości w przypadku powtórnego otrzymania poprzednio otrzymanej wiadomości
+    if(seq == lastMessageRecv.getSequence()) {
+        bool setTimer = lastMessageSent.getTag() != MessageACK;
+        sendMessage(lastMessageSent, setTimer, true);
 
         return true;
     }
 
-    if(seq != lastRecvMessageSeq + 1) {
+    if(seq != nextSequence) {
         return true;
     }
 
+    if(message.getTag() == MessageClose) {
+        return false;
+    }
+
+    nextSequence = message.getSequence() + 1;
     repeatCount = maxRepeats;
 
     return (this->*stateHandler)(message);
@@ -149,27 +161,23 @@ bool ConnectionWorker::handleTimeout()
         return false;
     }
 
-    socket.send(lastMessageSent);
-
-    responseTimer.set();
+    sendMessage(lastMessageSent, true, true);
 	
 	return true;
 }
 
 bool ConnectionWorker::handleHeartbeatTimeout()
 {
-    if(heartbeatMode == DELAY) {
-        socket.send(MessageHeartbeat);
-
-        heartbeatMode = EXPECT;
-        heartbeatTimer.set();
-
-        return true;
+    if(heartbeatTimer.isRunning()) {
+        return false;
     }
 
-    heartbeatRepeatCount--;
+    return true;
+}
 
-    return heartbeatRepeatCount > 0;
+void ConnectionWorker::handleHeartbeat()
+{
+    socket.send(MessageHeartbeat);
 }
 
 void ConnectionWorker::sendResult()
@@ -179,7 +187,10 @@ void ConnectionWorker::sendResult()
     }
 
     auto result = workerThread.get()->getResult();
-    sendMessage(Message(MessageResult, lastRecvMessageSeq + 1, result.segmentId, result.pointsHit));
+    sendMessage(Message(MessageResult, nextSequence, result.segmentId, result.pointsHit));
+
+    heartbeatTimeoutTimer.unset();
+    heartbeatTimer.unset();
 
     stateHandler = &ConnectionWorker::awaitingWorkOrACK;
 }
@@ -188,6 +199,17 @@ void ConnectionWorker::sendInterrupt() {
 	socket.send(Message(MessageInterrupt));
 }
 
-int ConnectionWorker::getTimerSignal() {
-	return timerSignal;
+int ConnectionWorker::getTimerSignal()
+{
+    return timerSignal;
+}
+
+int ConnectionWorker::getHeartbeatExpectSignal()
+{
+    return heartbeatExpectTimerSignal;
+}
+
+int ConnectionWorker::getHeartbeatDelaySignal()
+{
+    return heartbeatDelayTimerSignal;
 }

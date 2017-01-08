@@ -11,10 +11,11 @@ class SolutionManager;
 class ConnectionMain : ConnectionBase
 {
     static const int timerSignal = SIGUSR1;
+    static const int heartbeatTimerSignal = SIGPOLL;
     static const int responseTimeoutMs = 3000;
     static const int heartbeatTimeoutMs = 3000;
     static const int maxRepeats = 5;
-    
+
     SocketPassive& socket;
     SID worker;
 
@@ -24,7 +25,8 @@ class ConnectionMain : ConnectionBase
     int repeatCount = maxRepeats;
 
     Message lastMessageSent;
-    uint32_t lastRecvMessageSeq = 0;
+    Message lastMessageRecv;
+    uint32_t nextSequence = 1;
 
     SolutionManager& solutionManager;
     uint32_t subproblemSegmentId;
@@ -37,12 +39,15 @@ class ConnectionMain : ConnectionBase
     bool standingBy(Message message);
 
 protected:
-    void sendMessage(Message message, bool setTimer = true);
+    void sendMessage(Message message, bool setTimer = true, bool resend = false);
     void sendSubproblem();
 
 public:
     ConnectionMain(SocketPassive& socket, SID worker);
     virtual ~ConnectionMain();
+
+    static int getTimerSignal();
+    static int getHeartbeatTimerSignal();
 
     void startTimeout() override;
     void stopTimeout() override;
@@ -61,8 +66,6 @@ public:
     void sendInterrupt();
     void sendClose();
     SID getSID() const;
-    
-    static int getTimerSignal();
 };
 
 

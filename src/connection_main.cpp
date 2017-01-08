@@ -6,12 +6,13 @@
 
 bool ConnectionMain::awaitingHello(Message message)
 {
-    if(message.getSequence() != lastRecvMessageSeq + 1
+    if(message.getSequence() != nextSequence
             || message.getTag() != MessageHello) {
         return true;
     }
 
-    lastRecvMessageSeq = message.getSequence();
+    lastMessageRecv = message;
+    nextSequence = message.getSequence() + 1;
 
     sendSubproblem();
 
@@ -21,18 +22,17 @@ bool ConnectionMain::awaitingHello(Message message)
 bool ConnectionMain::awaitingWorkACK(Message message)
 {
     auto seq = message.getSequence();
-    if(seq != lastRecvMessageSeq + 1 || seq != lastRecvMessageSeq + 2) {
+    if(seq != nextSequence || seq != nextSequence + 1) {
         return true;
     }
 
-    lastRecvMessageSeq = seq;
+    lastMessageRecv = message;
+    nextSequence = message.getSequence() + 1;
 
     auto tag = message.getTag();
     if(tag == MessageACK) {
         responseTimer.unset();
-
         heartbeatTimer.set();
-
         solutionManager.assign(subproblemSegmentId, worker);
 
         stateHandler = &ConnectionMain::awaitingResult;
@@ -47,11 +47,12 @@ bool ConnectionMain::awaitingWorkACK(Message message)
 bool ConnectionMain::awaitingResult(Message message)
 {
     auto seq = message.getSequence();
-    if(seq != lastRecvMessageSeq + 1 || message.getTag() != MessageResult) {
+    if(seq != nextSequence || message.getTag() != MessageResult) {
         return true;
     }
 
-    lastRecvMessageSeq = seq;
+    lastMessageRecv = message;
+    nextSequence = message.getSequence() + 1;
 
     solutionManager.markSolved(message.getSegmentID(), message.getPointsHit());
     sendSubproblem();
@@ -66,13 +67,17 @@ bool ConnectionMain::standingBy(Message)
     throw std::runtime_error("Worker cannot receive any messages while Standing By.");
 }
 
-void ConnectionMain::sendMessage(Message message, bool setTimer)
+void ConnectionMain::sendMessage(Message message, bool setTimer, bool resend)
 {
     socket.sendMessage(message, worker.ip, worker.port);
     lastMessageSent = message;
 
     if(setTimer) {
         responseTimer.set();
+    }
+
+    if(!resend) {
+        nextSequence++;
     }
 }
 
@@ -82,7 +87,7 @@ void ConnectionMain::sendSubproblem()
 
     auto subproblem = solutionManager.pop(worker);
     if(subproblem == nullptr) {
-        sendMessage(Message(MessageACK, lastRecvMessageSeq + 1), false);
+        sendMessage(Message(MessageACK, nextSequence), false);
         heartbeatTimer.set();
 
         stateHandler = &ConnectionMain::standingBy;
@@ -92,7 +97,7 @@ void ConnectionMain::sendSubproblem()
 
     subproblemSegmentId = subproblem->getSegmentId();
 
-    sendMessage(Message(MessageWork, lastRecvMessageSeq + 1, subproblem->getSegmentId(), subproblem->getPoints(), subproblem->getSide()));
+    sendMessage(Message(MessageWork, nextSequence, subproblem->getSegmentId(), subproblem->getPoints(), subproblem->getSide()));
     stateHandler = &ConnectionMain::awaitingWorkACK;
 }
 
@@ -136,7 +141,7 @@ bool ConnectionMain::handleTimeout()
         return false;
     }
 
-    socket.sendMessage(lastMessageSent, worker.ip, worker.port);
+    sendMessage(lastMessageSent, true, true);
 
     responseTimer.set();
 
@@ -174,13 +179,16 @@ bool ConnectionMain::isHeartbeatTimeoutExpired() const
 
 bool ConnectionMain::handleMessage(Message message)
 {
-    if(message.getTag() == MessageHeartbeat && heartbeatTimer.isRunning()) {
+    auto tag = message.getTag();
+    auto seq = message.getSequence();
+
+    if(tag == MessageHeartbeat && heartbeatTimer.isRunning()) {
         socket.sendMessage(MessageHeartbeatACK, worker.ip, worker.port);
 
         heartbeatTimer.set();
     }
 
-    if(message.getTag() == MessageInterrupt) {
+    if(tag == MessageInterrupt) {
         if(stateHandler == &ConnectionMain::awaitingWorkACK || stateHandler == &ConnectionMain::awaitingResult) {
             solutionManager.unassign(subproblemSegmentId);
         }
@@ -188,12 +196,15 @@ bool ConnectionMain::handleMessage(Message message)
         return false;
     }
 
-    if(message.getSequence() < lastRecvMessageSeq) {
+    // zignorowanie wiadomości o numerze sekw. niższym niż w ostatniej otrzymanej wiadomości
+    if(seq < lastMessageRecv.getSequence()) {
         return true;
     }
 
-    if(message.getSequence() == lastRecvMessageSeq) {
-        socket.sendMessage(lastMessageSent, worker.ip, worker.port);
+    // ponowne wysłanie wiadomości w przypadku powtórnego otrzymania poprzednio otrzymanej wiadomości
+    if(seq == lastMessageRecv.getSequence() && tag == lastMessageRecv.getTag()) {
+        bool setTimer = lastMessageSent.getTag() != MessageACK;
+        sendMessage(lastMessageSent, setTimer, true);
 
         return true;
     }
@@ -219,7 +230,7 @@ void ConnectionMain::sendInterrupt()
 
 void ConnectionMain::sendClose()
 {
-	socket.sendMessage(Message(MessageClose, lastRecvMessageSeq+1), worker.ip, worker.port);
+    socket.sendMessage(Message(MessageClose, nextSequence), worker.ip, worker.port);
 }
 
 SID ConnectionMain::getSID() const
@@ -227,6 +238,12 @@ SID ConnectionMain::getSID() const
 	return worker;
 }
 
-int ConnectionMain::getTimerSignal() {
-	return timerSignal;
+int ConnectionMain::getTimerSignal()
+{
+    return timerSignal;
+}
+
+int ConnectionMain::getHeartbeatTimerSignal()
+{
+    return heartbeatTimerSignal;
 }

@@ -11,28 +11,25 @@
 
 class ConnectionWorker : ConnectionBase
 {
-    enum HeartbeatMode {
-        DELAY,
-        EXPECT
-    };
-
     static const int timerSignal = SIGUSR1;
+    static const int heartbeatExpectTimerSignal = SIGPOLL;
+    static const int heartbeatDelayTimerSignal = SIGALRM;
     static const int responseTimeoutMs = 3000;
-    static const int heartbeatTimeoutMs = 500;
+    static const int heartbeatTimeoutMs = 5000;
+    static const int heartbeatMs = 500;
     static const int maxRepeats = 5;
-    static const int maxHeartbeatRepeats = 10;
 
     SocketActive& socket;
 
     Timer responseTimer;
+    Timer heartbeatTimeoutTimer;
     Timer heartbeatTimer;
-    HeartbeatMode heartbeatMode = DELAY;
 
     int repeatCount = maxRepeats;
-    int heartbeatRepeatCount = maxHeartbeatRepeats;
 
     Message lastMessageSent;
-    uint32_t lastRecvMessageSeq = 0;
+    Message lastMessageRecv;
+    uint32_t nextSequence = 1;
 
     std::unique_ptr<WorkerThread> workerThread;
 
@@ -43,11 +40,15 @@ class ConnectionWorker : ConnectionBase
     bool standingBy(Message message);
 
 protected:
-    void sendMessage(Message message, bool setTimer = true);
+    void sendMessage(Message message, bool setTimer = true, bool resend = false);
 
 public:
     ConnectionWorker(SocketActive& socket);
     virtual ~ConnectionWorker();
+
+    static int getTimerSignal();
+    static int getHeartbeatExpectSignal();
+    static int getHeartbeatDelaySignal();
 
     void startTimeout() override;
     void stopTimeout() override;
@@ -65,7 +66,7 @@ public:
     void sendResult();
     void sendInterrupt();
     
-    static int getTimerSignal();
+    void handleHeartbeat();
 };
 
 #endif // SERVERCONNECTION_H
