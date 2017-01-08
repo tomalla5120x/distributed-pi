@@ -3,14 +3,20 @@
 #define SUBPROBLEM_H
 
 enum SubproblemState {UNASSIGNED, ASSIGNED_PENDING, ASSIGNED, SOLVED};
-typedef int SID;
+
+//typedef uint32_t IPAddress;
+//typedef uint16_t Port;
+//typedef struct {
+//	IPAddress ip;
+//	Port port;
+//} SID;
 
 class Subproblem
 {
 private:
     uint32_t segmentId;
     uint32_t side; //M - liczba kolumn i wierszy, na ktore bedzie podzielony kwadrat
-    uint64_t points; //N - liczba punktow do wylosowania w segmencie (w calym podproblemie bedzie ich points * side^2
+    uint64_t points; //N - liczba punktow do wylosowania w segmencie (w calym podproblemie bedzie ich points * side^2)
     SubproblemState state;
     SID assignedTo;
 public:
@@ -26,4 +32,4 @@ public:
 };
 
 
-#endif // SUBPROBLEM_H_INCLUDED
+#endif // SUBPROBLEM_H

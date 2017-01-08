@@ -1,11 +1,13 @@
 #include "solution_manager.h"
 #include <stdexcept>
+#include <sstream>
+using namespace std;
 
 SolutionManager::SolutionManager(uint32_t mSide, uint64_t nPoints, uint32_t digitsAfterDot)
 {
-    if(mSide == 0)
+    if(mSide == 0 || mSide > MAX_SIDE_VALUE)
     {
-        throw runtime_error("Side value must be greater than 0");
+        throw runtime_error("Side value must be between 0 and MAX_VALUE");
     }
     if(nPoints == 0)
     {
@@ -18,18 +20,28 @@ SolutionManager::SolutionManager(uint32_t mSide, uint64_t nPoints, uint32_t digi
 
     side = mSide;
     points = nPoints;
-    squareSegments = new Segment[side * side];
+    uint64_t arraySize = side * side;
+    cout << arraySize << endl;
+    squareSegments = new Segment[arraySize];
     this->digitsAfterDot = digitsAfterDot;
 }
 
 SolutionManager::~SolutionManager()
 {
     delete [] squareSegments;
+    list<Subproblem*>::iterator it;
+    for(it = subproblems.begin(); it != subproblems.end(); it++)
+    {
+        if(*it != nullptr)
+        {
+            delete (*it);
+            (*it) = nullptr;
+        }
+    }
 }
 
 void SolutionManager::initialize()
 {
-    uint32_t radius = K * side;
     bool isResultKnown = false;
     uint32_t segmentId = 0;
     for(uint32_t i = 0; i < side * side; i++)
@@ -37,10 +49,10 @@ void SolutionManager::initialize()
         segmentId = i + 1;
         squareSegments[i].setSegmentId(segmentId);
         squareSegments[i].setSide(side);
-        isResultKnown = squareSegments[i].isResultKnown(radius);
+        isResultKnown = squareSegments[i].isResultKnown();
         if(isResultKnown)
         {
-            if(squareSegments[i].isWholeInsideCircle(radius))
+            if(squareSegments[i].isWholeInsideCircle())
             {
                 squareSegments[i].setPointsHit(points);
             } else {
@@ -123,9 +135,46 @@ bool SolutionManager::solved()
     }
     return true;
 }
+
+string SolutionManager::decimalExpansion(uint64_t a, uint64_t b, uint32_t digits)
+{
+    stringstream ss;
+
+    ss << (a / b);
+
+    if(digits == 0)
+        return ss.str();
+
+    ss << '.';
+    uint32_t currentDigit = 0;
+
+    uint64_t remainder = a % b;
+
+    while(currentDigit != digits)
+    {
+        ++currentDigit;
+
+        remainder *= 10;
+
+        uint64_t newDigit = remainder / b;
+        ss << newDigit;
+
+        remainder = remainder - newDigit * b;
+    }
+
+    return ss.str();
+}
+
 string SolutionManager::getResult()
 {
-
+    uint64_t chosenPoints = points * side * side; //suma wylosowanych punktow we wszystkich segmentach
+    uint64_t pointsHitSum = 0;
+    for(uint32_t i = 0; i < side * side; i++)
+    {
+        pointsHitSum += squareSegments[i].getPointsHit();
+    }
+    uint64_t dividend = 4 * pointsHitSum; // dzielna
+    return decimalExpansion(dividend, chosenPoints, digitsAfterDot);
 }
 Subproblem* SolutionManager::pop(SID worker)
 {
@@ -146,12 +195,11 @@ Subproblem* SolutionManager::pop(SID worker)
 void SolutionManager::print()
 {
     cout << "Segmenty: " << endl;
-    uint32_t radius = K * side;
-    for(int i = 0; i < side * side; i++)
+    for(uint32_t i = 0; i < side * side; i++)
     {
         cout << i + 1 << ". id = " << squareSegments[i].getSegmentId() << ", side = " << squareSegments[i].getSide();
-        cout << ", xLeft = " << squareSegments[i].getXLeft(radius) << ", xRight = " << squareSegments[i].getXRight(radius);
-        cout << ", yBottom = " << squareSegments[i].getYBottom(radius) << ", yTop = " <<squareSegments[i].getYTop(radius);
+        cout << ", xLeft = " << squareSegments[i].getXLeft() << ", xRight = " << squareSegments[i].getXRight();
+        cout << ", yBottom = " << squareSegments[i].getYBottom() << ", yTop = " <<squareSegments[i].getYTop();
         cout << ", column = " << squareSegments[i].getColumn() << ", row = " << squareSegments[i].getRow();
         cout << ", pointsHit = " << squareSegments[i].getPointsHit() << endl;
     }
@@ -163,7 +211,7 @@ void SolutionManager::print()
         cout << ", state = " << (*it)->getState() << endl;
         if((*it)->getState() == ASSIGNED || (*it)->getState() == ASSIGNED_PENDING)
         {
-            cout << "assigned to: " << (*it)->getSIDAssignedTo() << endl;
+            cout << "assigned to: " << (*it)->getSIDAssignedTo().ip << ":" << (*it)->getSIDAssignedTo().port << endl;
         }
     }
 }

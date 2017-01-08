@@ -3,6 +3,8 @@
 #define SEGMENT_H
 
 const uint32_t K = 3; //wielokrotnosc side, ktora zostanie przyjeta jako promien
+const uint32_t MAX_SIDE_VALUE = 10000; //potem brakuje pamieci na tablice dynamiczna, a dla ok 30 000 wynik obliczen jest kiepskiej jakosci
+
 bool isPointInsideCircle(double x, double y, uint32_t radius);
 
 /*
@@ -30,13 +32,13 @@ public:
     //numer wiersza z przedzialu <1, side> (od dolu do gory)
     uint32_t getRow();
     //wspolrzedne wierzcholkow segmentu
-    uint32_t getXLeft(uint32_t radius);
-    uint32_t getXRight(uint32_t radius);
-    uint32_t getYBottom(uint32_t radius);
-    uint32_t getYTop(uint32_t radius);
-    bool isWholeInsideCircle(uint32_t radius);
-    bool isWholeOutsideCircle(uint32_t radius);
-    bool isResultKnown(uint32_t radius);
+    uint32_t getXLeft();
+    uint32_t getXRight();
+    uint32_t getYBottom();
+    uint32_t getYTop();
+    bool isWholeInsideCircle();
+    bool isWholeOutsideCircle();
+    bool isResultKnown();
 };
 
 

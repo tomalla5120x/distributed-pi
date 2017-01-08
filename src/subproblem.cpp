@@ -1,12 +1,13 @@
 #include "subproblem.h"
+#include "segment.h"
 #include <stdexcept>
 using namespace std;
 
 Subproblem::Subproblem(uint32_t id, uint32_t mSide, uint64_t nPoints)
 {
-    if(mSide == 0)
+    if(mSide == 0 || mSide > MAX_SIDE_VALUE)
     {
-        throw runtime_error("Side value must be greater than 0");
+        throw runtime_error("Side value must be between 0 and MAX_VALUE");
     }
     if(nPoints == 0)
     {
@@ -23,7 +24,8 @@ Subproblem::Subproblem(uint32_t id, uint32_t mSide, uint64_t nPoints)
 
 void Subproblem::resetSIDAssignedTo()
 {
-    assignedTo = 0; //do weryfikacji przez Tomka, ale jakiœ reset by siê przyda³
+    assignedTo.ip = 0;
+    assignedTo.port = 0;
 }
 
 uint32_t Subproblem::getSegmentId()
