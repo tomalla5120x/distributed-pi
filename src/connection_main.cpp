@@ -10,7 +10,7 @@ bool ConnectionMain::awaitingHello(Message message)
 {
     if(message.getSequence() != nextSequence
             || message.getTag() != MessageHello) {
-        LOG(INFO) << logPreamble() << message.str() << "UNEXPECTED sequence number or tag. Message IGNORED";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " UNEXPECTED sequence number or tag. Message IGNORED";
 
         return true;
     }
@@ -27,7 +27,7 @@ bool ConnectionMain::awaitingWorkACK(Message message)
 {
     auto seq = message.getSequence();
     if(seq != nextSequence || seq != nextSequence + 1) {
-        LOG(INFO) << logPreamble() << message.str() << "UNXEPECTED sequence number or tag. Message IGNORED";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " UNXEPECTED sequence number or tag. Message IGNORED";
 
         return true;
     }
@@ -37,14 +37,14 @@ bool ConnectionMain::awaitingWorkACK(Message message)
 
     auto tag = message.getTag();
     if(tag == MessageACK) {
-        LOG(INFO) << logPreamble() << "ACK RECEIVED. Subproblem ASSIGNED...";
+        CLOG(INFO, "connection") << logPreamble() << "ACK RECEIVED. Subproblem ASSIGNED...";
 
         heartbeatTimer.set();
         solutionManager.assign(subproblemSegmentId, worker);
 
-        stateHandler = &ConnectionMain::awaitingResult;
+        CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [AwaitingResult] state...";
 
-        LOG(INFO) << logPreamble() << "Going to [AwaitingResult] state...";
+        stateHandler = &ConnectionMain::awaitingResult;
     } else if(tag == MessageResult) {
         solutionManager.markSolved(message.getSegmentID(), message.getPointsHit());
         sendSubproblem();
@@ -59,7 +59,7 @@ bool ConnectionMain::awaitingResult(Message message)
 {
     auto seq = message.getSequence();
     if(seq != nextSequence || message.getTag() != MessageResult) {
-        LOG(INFO) << logPreamble() << message.str() << "UNEXPECTED sequence number or tag. IGNORING message...";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " UNEXPECTED sequence number or tag. IGNORING message...";
 
         return true;
     }
@@ -89,10 +89,10 @@ void ConnectionMain::sendMessage(Message message, bool setTimer, bool resend)
     socket.sendMessage(message, worker.ip, worker.port);
     lastMessageSent = message;
 
-    LOG(INFO) << logPreamble() << message.str() << "SENT";
+    CLOG(INFO, "connection") << logPreamble() << message.str() << " SENT";
 
     if(setTimer) {
-        LOG(INFO) << logPreamble() << "Response timer SET";
+        CLOG(INFO, "connection") << logPreamble() << "Response timer SET";
 
         responseTimer.set();
     }
@@ -108,7 +108,7 @@ void ConnectionMain::sendSubproblem()
 
     auto subproblem = solutionManager.pop(worker);
     if(subproblem == nullptr) {
-        LOG(INFO) << logPreamble() << "No subproblem to assign. Going to [StandingBy] state...";
+        CLOG(INFO, "connection") << logPreamble() << "No subproblem to assign. TRANSITION to [StandingBy] state...";
 
         sendMessage(Message(MessageACK, nextSequence), false);
         heartbeatTimer.set();
@@ -121,16 +121,17 @@ void ConnectionMain::sendSubproblem()
     subproblemSegmentId = subproblem->getSegmentId();
 
     sendMessage(Message(MessageWork, nextSequence, subproblem->getSegmentId(), subproblem->getPoints(), subproblem->getSide()));
-    stateHandler = &ConnectionMain::awaitingWorkACK;
 
-    LOG(INFO) << logPreamble() << "Subproblem FOUND. Subproblem SENT";
-    LOG(INFO) << logPreamble() << "Going to [AwaitingResult] state...";
+    CLOG(INFO, "connection") << logPreamble() << "Subproblem FOUND. Subproblem SENT";
+    CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [AwaitingResult] state...";
+
+    stateHandler = &ConnectionMain::awaitingWorkACK;
 }
 
 std::string ConnectionMain::logPreamble()
 {
     std::ostringstream oss;
-    oss << "ConnectionMain(" << SocketBase::iptostr(worker.ip) << ", " << worker.port << "): ";
+    oss << "ConnectionMain(" << SocketBase::iptostr(worker.ip) << ", " << worker.port << ", nextseq = " << nextSequence << "): ";
 
     if(stateHandler == &ConnectionMain::awaitingHello) {
         oss << "[AwaitingHello] ";
@@ -157,6 +158,7 @@ ConnectionMain::ConnectionMain(SocketPassive& socket, SID worker) :
     heartbeatTimer(timerSignal, heartbeatTimeoutMs, true),
     solutionManager(SolutionManager::getInstance())
 {
+    CLOG(INFO, "connection") << logPreamble() << "INSTANTIATED.";
 }
 
 void ConnectionMain::startTimeout()
@@ -182,14 +184,14 @@ bool ConnectionMain::handleTimeout()
             solutionManager.unassign(subproblemSegmentId);
         }
 
-        LOG(INFO) << logPreamble() << "Response TIMEOUT occurred. NO REMAINING timeouts. CLOSING connection..." << repeatCount;
+        CLOG(INFO, "connection") << logPreamble() << "Response TIMEOUT occurred. NO REMAINING timeouts. CLOSING connection..." << repeatCount;
 
         return false;
     }
 
     sendMessage(lastMessageSent, true, true);
 
-    LOG(INFO) << logPreamble() << "Response TIMEOUT occurred. " << lastMessageSent << " RESENT. Timeouts REMAINING: " << repeatCount;
+    CLOG(INFO, "connection") << logPreamble() << "Response TIMEOUT occurred. " << lastMessageSent.str() << " RESENT. Timeouts REMAINING: " << repeatCount;
 
     return true;
 }
@@ -200,7 +202,7 @@ bool ConnectionMain::handleHeartbeatTimeout()
         solutionManager.unassign(subproblemSegmentId);
     }
 
-    LOG(INFO) << logPreamble() << "Heartbeat TIMEOUT occurred. CLOSING connection...";
+    CLOG(INFO, "connection") << logPreamble() << "Heartbeat TIMEOUT occurred. CLOSING connection...";
 
     return false;
 }
@@ -227,7 +229,7 @@ bool ConnectionMain::isHeartbeatTimeoutExpired() const
 
 bool ConnectionMain::handleMessage(Message message)
 {
-    LOG(INFO) << logPreamble() << message.str() << " RECEIVED";
+    CLOG(INFO, "connection") << logPreamble() << message.str() << " RECEIVED";
 
     auto tag = message.getTag();
     auto seq = message.getSequence();
@@ -236,7 +238,7 @@ bool ConnectionMain::handleMessage(Message message)
         socket.sendMessage(MessageHeartbeatACK, worker.ip, worker.port);
         heartbeatTimer.set();
 
-        LOG(INFO) << logPreamble() << message.str() << "Heartbeat RECEIVED. ACK sent. Heartbeat timer RESET";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " Heartbeat RECEIVED. ACK sent. Heartbeat timer RESET";
     }
 
     if(tag == MessageInterrupt) {
@@ -244,14 +246,14 @@ bool ConnectionMain::handleMessage(Message message)
             solutionManager.unassign(subproblemSegmentId);
         }
 
-        LOG(INFO) << logPreamble() << message.str() << "RECEIVED. CLOSING connection...";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " RECEIVED. CLOSING connection...";
 
         return false;
     }
 
     // zignorowanie wiadomości o numerze sekw. niższym niż w ostatniej otrzymanej wiadomości
     if(seq < lastMessageRecv.getSequence()) {
-        LOG(INFO) << logPreamble() << "Message of too low sequence number RECEIVED. Message IGNORED";
+        CLOG(INFO, "connection") << logPreamble() << "Message of too low sequence number RECEIVED. Message IGNORED";
 
         return true;
     }
@@ -261,7 +263,7 @@ bool ConnectionMain::handleMessage(Message message)
         bool setTimer = lastMessageSent.getTag() != MessageACK;
         sendMessage(lastMessageSent, setTimer, true);
 
-        LOG(INFO) << logPreamble() << "Last received message RECEIVED AGAIN. Message RESENT";
+        CLOG(INFO, "connection") << logPreamble() << "Last received message RECEIVED AGAIN. Message RESENT";
 
         return true;
     }
@@ -287,14 +289,14 @@ void ConnectionMain::sendInterrupt()
 {
 	 socket.sendMessage(Message(MessageInterrupt), worker.ip, worker.port);
 
-     LOG(INFO) << logPreamble() << "MessageInterrupt SENT";
+     CLOG(INFO, "connection") << logPreamble() << "MessageInterrupt SENT";
 }
 
 void ConnectionMain::sendClose()
 {
     socket.sendMessage(Message(MessageClose, nextSequence), worker.ip, worker.port);
 
-    LOG(INFO) << logPreamble() << "MessageClose SENT";
+    CLOG(INFO, "connection") << logPreamble() << "MessageClose SENT";
 }
 
 SID ConnectionMain::getSID() const

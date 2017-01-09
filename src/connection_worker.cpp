@@ -5,30 +5,30 @@
 bool ConnectionWorker::awaitingWorkOrACK(Message message)
 {
     if(message.getTag() == MessageACK) {
-        stateHandler = &ConnectionWorker::standingBy;
+        CLOG(INFO, "connection") << logPreamble() << "Going to [StandingBy] state...";
 
-        LOG(INFO) << logPreamble() << "Going to [StandingBy] state...";
+        stateHandler = &ConnectionWorker::standingBy;
     } else if(message.getTag() == MessageWork) {
         workerThread.reset(new WorkerThread(message.getSegmentID(), message.getSide(), message.getPoints()));
         workerThread.get()->start();
 
-        LOG(INFO) << logPreamble() << "Work RECEIVED. Worker thread STARTED";
+        CLOG(INFO, "connection") << logPreamble() << "Work RECEIVED. Worker thread STARTED";
 
         sendMessage(Message(MessageACK, nextSequence), false);
 
-        stateHandler = &ConnectionWorker::working;
+        CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [Working] state...";
 
-        LOG(INFO) << logPreamble() << "Going to [Working] state...";
+        stateHandler = &ConnectionWorker::working;
     }
 
     responseTimer.unset();
 
-    LOG(INFO) << logPreamble() << "ResponseTimer UNSET";
+    CLOG(INFO, "connection") << logPreamble() << "ResponseTimer UNSET";
 
     heartbeatTimer.set();
     heartbeatTimeoutTimer.set();
 
-    LOG(INFO) << logPreamble() << "Heartbeat timers SET";
+    CLOG(INFO, "connection") << logPreamble() << "Heartbeat timers SET";
 
     return true;
 }
@@ -41,7 +41,7 @@ bool ConnectionWorker::working(Message)
 bool ConnectionWorker::standingBy(Message message)
 {
     if(message.getTag() != MessageWork) {
-        LOG(INFO) << logPreamble() << message.str() << "UNEXPECTED tag. Message IGNORED";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " UNEXPECTED tag. Message IGNORED";
 
         return true;
     }
@@ -49,20 +49,18 @@ bool ConnectionWorker::standingBy(Message message)
     workerThread.reset(new WorkerThread(message.getSegmentID(), message.getSide(), message.getPoints()));
     workerThread.get()->start();
 
-    LOG(INFO) << logPreamble() << "Work RECEIVED. Worker thread STARTED";
+    CLOG(INFO, "connection") << logPreamble() << "Work RECEIVED. Worker thread STARTED";
 
     sendMessage(Message(MessageACK, nextSequence), false);
 
-    LOG(INFO) << logPreamble() << "Heartbeat timers SET";
+    CLOG(INFO, "connection") << logPreamble() << "Heartbeat timers SET";
 
     heartbeatTimer.set();
     heartbeatTimeoutTimer.set();
 
-    stateHandler = &ConnectionWorker::working;
+    CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [Working] state...";
 
-    LOG(INFO) << logPreamble() << "Going to [Working] state...";
-	
-	return true;
+    stateHandler = &ConnectionWorker::working;
 }
 
 void ConnectionWorker::sendMessage(Message message, bool setTimer, bool resend)
@@ -70,12 +68,12 @@ void ConnectionWorker::sendMessage(Message message, bool setTimer, bool resend)
     socket.send(message);
     lastMessageSent = message;
 
-    LOG(INFO) << logPreamble() << message.str() << "SENT";
+    CLOG(INFO, "connection") << logPreamble() << message.str() << " SENT";
 
     if(setTimer) {
         responseTimer.set();
 
-        LOG(INFO) << logPreamble() << "Response timer SET";
+        CLOG(INFO, "connection") << logPreamble() << "Response timer SET";
     }
 
     if(!resend) {
@@ -86,7 +84,7 @@ void ConnectionWorker::sendMessage(Message message, bool setTimer, bool resend)
 std::string ConnectionWorker::logPreamble()
 {
     std::ostringstream oss;
-    oss << "ConnectionWorker: ";
+    oss << "ConnectionWorker(nextseq = " << nextSequence << "): ";
 
     if(stateHandler == &ConnectionWorker::awaitingWorkOrACK) {
         oss << "[AwaitingWorkOrACK] ";
@@ -153,7 +151,7 @@ bool ConnectionWorker::isHeartbeatTimeoutExpired() const
 
 bool ConnectionWorker::handleMessage(Message message)
 {
-    LOG(INFO) << logPreamble() << message.str() << " RECEIVED";
+    CLOG(INFO, "connection") << logPreamble() << message.str() << " RECEIVED";
 
     auto tag = message.getTag();
     auto seq = message.getSequence();
@@ -161,20 +159,20 @@ bool ConnectionWorker::handleMessage(Message message)
     if(tag == MessageHeartbeatACK && heartbeatTimeoutTimer.isRunning()) {
         heartbeatTimeoutTimer.set();
 
-        LOG(INFO) << logPreamble() << message.str() << "Heartbeat RECEIVED. ACK sent. HeartbeatTimeout timer RESET";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " Heartbeat RECEIVED. ACK sent. HeartbeatTimeout timer RESET";
 
         return true;
     }
 
     if(tag == MessageInterrupt) {
-        LOG(INFO) << logPreamble() << message.str() << "RECEIVED. TERMINATING...";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " RECEIVED. TERMINATING...";
 
         return false;
     }
 
     // zignorowanie wiadomości o numerze sekw. niższym niż w ostatniej otrzymanej wiadomości
     if(seq < lastMessageRecv.getSequence()) {
-        LOG(INFO) << logPreamble() << "Message of too low sequence number RECEIVED. Message IGNORED";
+        CLOG(INFO, "connection") << logPreamble() << "Message of too low sequence number RECEIVED. Message IGNORED";
 
         return true;
     }
@@ -184,19 +182,19 @@ bool ConnectionWorker::handleMessage(Message message)
         bool setTimer = lastMessageSent.getTag() != MessageACK;
         sendMessage(lastMessageSent, setTimer, true);
 
-        LOG(INFO) << logPreamble() << "Last received message RECEIVED AGAIN. Message RESENT";
+        CLOG(INFO, "connection") << logPreamble() << "Last received message RECEIVED AGAIN. Message RESENT";
 
         return true;
     }
 
     if(seq != nextSequence) {
-        LOG(INFO) << logPreamble() << message.str() << "UNEXPECTED sequence. Message IGNORED";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " UNEXPECTED sequence. Message IGNORED";
 
         return true;
     }
 
     if(message.getTag() == MessageClose) {
-        LOG(INFO) << logPreamble() << message.str() << "RECEIVED. TERMINATING...";
+        CLOG(INFO, "connection") << logPreamble() << message.str() << " RECEIVED. TERMINATING...";
 
         return false;
     }
@@ -211,7 +209,7 @@ bool ConnectionWorker::handleTimeout()
 {
     repeatCount--;
     if(repeatCount <= 0) {
-        LOG(INFO) << logPreamble() << "Response TIMEOUT occurred. NO REMAINING timeouts. TERMINATING..." << repeatCount;
+        CLOG(INFO, "connection") << logPreamble() << "Response TIMEOUT occurred. NO REMAINING timeouts. TERMINATING...";
 
         socket.send(MessageInterrupt);
 
@@ -220,7 +218,7 @@ bool ConnectionWorker::handleTimeout()
 
     sendMessage(lastMessageSent, true, true);
 
-    LOG(INFO) << logPreamble() << "Response TIMEOUT occurred. " << lastMessageSent << " RESENT. Timeouts REMAINING: " << repeatCount;
+    CLOG(INFO, "connection") << logPreamble() << "Response TIMEOUT occurred. " << lastMessageSent.str() << " RESENT. Timeouts REMAINING: " << repeatCount;
 	
 	return true;
 }
@@ -228,7 +226,7 @@ bool ConnectionWorker::handleTimeout()
 bool ConnectionWorker::handleHeartbeatTimeout()
 {
     if(heartbeatTimer.isRunning()) {
-        LOG(INFO) << logPreamble() << "Heartbeat TIMEOUT occurred. TERMINATING...";
+        CLOG(INFO, "connection") << logPreamble() << "Heartbeat TIMEOUT occurred. TERMINATING...";
 
         return false;
     }
@@ -240,19 +238,19 @@ void ConnectionWorker::handleHeartbeat()
 {
     socket.send(Message(MessageHeartbeat));
 
-    LOG(INFO) << logPreamble() << "Heartbeat occurred. " << Message(MessageHeartbeat) << " SENT";
+    CLOG(INFO, "connection") << logPreamble() << "Heartbeat occurred. " << Message(MessageHeartbeat).str() << " SENT";
 }
 
 void ConnectionWorker::sendResult()
 {
     if(stateHandler != &ConnectionWorker::working) {
         std::string text;
-        LOG(INFO) << logPreamble() << text;
+        //CLOG(INFO, "connection") << logPreamble() << text;
 
         throw std::logic_error("Result may only be sent while in Working state.");
     }
 
-    LOG(INFO) << logPreamble() << "Computation FINISHED. SENDING result...";
+    CLOG(INFO, "connection") << logPreamble() << "Computation FINISHED. SENDING result...";
 
     auto result = workerThread.get()->getResult();
     sendMessage(Message(MessageResult, nextSequence, result.segmentId, result.pointsHit));
@@ -260,17 +258,17 @@ void ConnectionWorker::sendResult()
     heartbeatTimeoutTimer.unset();
     heartbeatTimer.unset();
 
-    LOG(INFO) << logPreamble() << "Heartbeat timers UNSET";
+    CLOG(INFO, "connection") << logPreamble() << "Heartbeat timers UNSET";
 
     stateHandler = &ConnectionWorker::awaitingWorkOrACK;
 
-    LOG(INFO) << logPreamle() << "Going to [AwaitingWorkOrACK] state...";
+    CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [AwaitingWorkOrACK] state...";
 }
 
 void ConnectionWorker::sendInterrupt() {
 	socket.send(Message(MessageInterrupt));
 	
-	LOG(INFO) << logPreamble() << "Interrupt occured. " << Message(MessageInterrupt) << " SENT";
+    CLOG(INFO, "connection") << logPreamble() << "Interrupt occured. " << Message(MessageInterrupt).str() << " SENT";
 }
 
 int ConnectionWorker::getTimerSignal()
