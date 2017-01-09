@@ -93,7 +93,11 @@ int main(int argc, char* argv[])
 			}
 		} else if(signal == SIGNAL_TIMEOUT)
 		{
-			connection.handleTimeout();
+			if(!connection.handleTimeout())
+			{
+				cout << "Serwer glowny nie odpowiada." << endl;
+				return EXIT_FAILURE;
+			}
 		} else if(signal == SIGNAL_HB)
 		{
 			connection.handleHeartbeat();
@@ -103,7 +107,6 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 		} else if(signal == SIGNAL_THREAD)
 		{
-			cout << "CATCH" << endl;
 			connection.sendResult();
 		} else if(signal == SIGINT)
 		{

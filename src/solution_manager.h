@@ -33,7 +33,7 @@ public:
 	static SolutionManager& getInstance();
 	static void configure(uint32_t mSide, uint64_t nPoints, uint32_t digitsAfterDot);
 	
-    void initialize();
+    int initialize();
     void markSolved(uint32_t segmentId, uint64_t pointsHit);
     void assign(uint32_t segmentId, SID worker);
     void unassign(uint32_t segmentId);

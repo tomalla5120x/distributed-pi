@@ -15,6 +15,23 @@ void ServerManager::handleMessage(Message& message, const IPAddress ip, const Po
 	// w przeciwnym razie ignorują go).
 	
 	SID sid = SID{ip, port};
+	
+	if(message.getTag() == MessageInterrupt)
+	{
+		bool deleted = false;
+		
+		m_pool.deleteConnectionIf([&](ConnectionMain* pConn) -> bool {
+			bool b = pConn->getSID() == sid;
+			deleted = deleted || b;
+			return b;
+		});
+		
+		if(deleted)
+			tryAssignSubproblem();
+		
+		return;
+	}
+	
 	ConnectionMain* pConn = m_pool.getConnection(sid);
 	
 	if(pConn == nullptr)
@@ -36,12 +53,21 @@ void ServerManager::handleTimeout()
 	// do odpowiedniego ConnectionMain. Jeżeli zwróci false, trzeba odpowiednio zareagować
 	// (np. usunąć ConnectionMain z puli, przypisać komuś innemu podproblem itd.).
 	
-	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
+	bool deleted = false;
+	
+	m_pool.deleteConnectionIf([&](ConnectionMain* pConn) -> bool {
 		if(pConn->isTimeoutExpired())
-			return !pConn->handleTimeout();
+		{
+			bool b = !pConn->handleTimeout();
+			deleted = deleted || b;
+			return b;
+		}
 		
 		return false;
 	});
+	
+	if(deleted)
+		tryAssignSubproblem();
 }
 
 void ServerManager::handleHeartbeatTimeout()
@@ -50,9 +76,16 @@ void ServerManager::handleHeartbeatTimeout()
 	// wygenerowany przez któryś z timerów Heartbeat Timeout. Ustalamy, timery których
 	// obiektów ConnectionMain wygasły i coś z nimi robimy (kasujemy ConnectionMain z puli, sprzątamy po nim itd.).
 	
-	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
-		return pConn->isHeartbeatTimeoutExpired();
+	bool deleted = false;
+	
+	m_pool.deleteConnectionIf([&](ConnectionMain* pConn) -> bool {
+		bool b = pConn->isHeartbeatTimeoutExpired();
+		deleted = deleted || b;
+		return b;
 	});
+	
+	if(deleted)
+		tryAssignSubproblem();
 }
 
 void ServerManager::handleInterrupt()
@@ -74,6 +107,15 @@ void ServerManager::finalize()
 
 	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
 		pConn->sendClose();
+		
+		return false;
+	});
+}
+
+void ServerManager::tryAssignSubproblem()
+{
+	m_pool.deleteConnectionIf([](ConnectionMain* pConn) -> bool {
+		pConn->tryAssignSubproblem();
 		
 		return false;
 	});

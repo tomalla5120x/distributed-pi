@@ -22,7 +22,7 @@ bool ConnectionMain::awaitingHello(Message message)
 bool ConnectionMain::awaitingWorkACK(Message message)
 {
     auto seq = message.getSequence();
-    if(seq != nextSequence || seq != nextSequence + 1) {
+    if(seq != nextSequence && seq != nextSequence + 1) {
         return true;
     }
 
@@ -105,6 +105,10 @@ ConnectionMain::~ConnectionMain()
 {
     responseTimer.unset();
     heartbeatTimer.unset();
+    
+    if(stateHandler == &ConnectionMain::awaitingWorkACK || stateHandler == &ConnectionMain::awaitingResult) {
+        solutionManager.unassign(subproblemSegmentId);
+    }
 }
 
 ConnectionMain::ConnectionMain(SocketPassive& socket, SID worker) :
@@ -186,6 +190,7 @@ bool ConnectionMain::handleMessage(Message message)
         socket.sendMessage(MessageHeartbeatACK, worker.ip, worker.port);
 
         heartbeatTimer.set();
+        return true;
     }
 
     if(tag == MessageInterrupt) {
@@ -214,13 +219,24 @@ bool ConnectionMain::handleMessage(Message message)
     return (this->*stateHandler)(message);
 }
 
-void ConnectionMain::assignSubproblem()
+bool ConnectionMain::tryAssignSubproblem()
 {
     if(stateHandler != &ConnectionMain::standingBy) {
-        throw std::runtime_error("Worker can only be assigned a subproblem while Standing By.");
+        return false;
     }
 
-    sendSubproblem();
+    auto subproblem = solutionManager.pop(worker);
+    if(subproblem == nullptr)
+    	return false;
+    	
+    heartbeatTimer.unset();
+
+    subproblemSegmentId = subproblem->getSegmentId();
+
+    sendMessage(Message(MessageWork, nextSequence, subproblem->getSegmentId(), subproblem->getPoints(), subproblem->getSide()));
+    stateHandler = &ConnectionMain::awaitingWorkACK;
+    	
+    return true;
 }
 
 void ConnectionMain::sendInterrupt()

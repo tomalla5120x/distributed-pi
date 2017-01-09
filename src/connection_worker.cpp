@@ -14,6 +14,8 @@ bool ConnectionWorker::awaitingWorkOrACK(Message message)
         stateHandler = &ConnectionWorker::working;
     }
 
+    responseTimer.unset();
+
     heartbeatTimer.set();
     heartbeatTimeoutTimer.set();
 
@@ -156,7 +158,7 @@ bool ConnectionWorker::handleTimeout()
 {
     repeatCount--;
     if(repeatCount <= 0) {
-        socket.send(MessageInterrupt);
+        socket.send(Message(MessageInterrupt));
 
         return false;
     }

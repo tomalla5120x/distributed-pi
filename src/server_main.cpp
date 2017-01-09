@@ -95,8 +95,8 @@ int main(int argc, char* argv[])
 	
 	ServerManager serverManager(*(socket.get()));
 	SolutionManager& solutionManager = SolutionManager::getInstance();
-	solutionManager.initialize();
 	
+	cout << "Ilosc wydzielonych podproblemow: " << solutionManager.initialize() << endl;
 	cout << "Serwer nasluchuje na porcie: " << socket->getPort() << endl;
 	
 	do

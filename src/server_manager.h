@@ -7,10 +7,14 @@
 #include "SocketActive.h"
 #include "SocketPassive.h"
 
-typedef struct {
+struct SID {
 	IPAddress ip;
 	Port port;
-} SID;
+	
+	bool operator==(const SID& s) {
+		return ip == s.ip && port == s.port;
+	}
+};
 
 struct _SIDCompare
 {
@@ -63,6 +67,8 @@ public:
 	void finalize();
 	
 private:
+	void tryAssignSubproblem();
+	
 	SocketPassive& m_socket;
 	ConnectionPool m_pool;
 };

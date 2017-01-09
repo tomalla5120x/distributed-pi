@@ -62,7 +62,7 @@ public:
     bool handleTimeout() override;
     bool handleHeartbeatTimeout() override;
 
-    void assignSubproblem();
+    bool tryAssignSubproblem();
     void sendInterrupt();
     void sendClose();
     SID getSID() const;

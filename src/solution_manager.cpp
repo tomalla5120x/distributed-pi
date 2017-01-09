@@ -62,7 +62,7 @@ SolutionManager::~SolutionManager()
     }
 }
 
-void SolutionManager::initialize()
+int SolutionManager::initialize()
 {
     bool isResultKnown = false;
     uint32_t segmentId = 0;
@@ -85,6 +85,8 @@ void SolutionManager::initialize()
             subproblems.push_back(subproblem);
         }
     }
+    
+    return subproblems.size();
 }
 
 void SolutionManager::markSolved(uint32_t segmentId, uint64_t pointsHit)

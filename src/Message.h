@@ -1,6 +1,9 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
-#include <stdint.h>
+
+#include <string>
+#include <cstdint>
+#include <map>
 
 /*
 * enum z typem wiadomosci. wybor rozmiaru wymaga c++11
@@ -25,6 +28,8 @@ enum MessageType : uint8_t
 */
 class Message {
 public:
+    using TypeToNameMap = std::map<MessageType, std::string>;
+
 	MessageType	getTag() 		{ return mTag; };
 	uint32_t	getSequence() 	{ return mSequence; };
 	uint64_t	getPoints() 	{ return mPoints; };
@@ -32,7 +37,7 @@ public:
 	uint32_t	getSegmentID()	{ return mSegmentID; };
 	uint32_t	getSide()		{ return mSide; };
 
-	Message(): mTag(MessageInvalid) {};
+	Message(): mTag(MessageInvalid), mSequence(0) {};
 
 	/**
 	* Do uzycia z MessageInterrupt, Heartbeat, HeartbeatACK
@@ -60,9 +65,12 @@ public:
 	Message(MessageType tag, uint32_t sequence, uint32_t segment_id, uint64_t points, uint32_t side) :
 			mTag(tag), mSequence(sequence), mPoints(points), mSegmentID(segment_id), mSide(side) 
 			{};
-			
 
+    std::string str();
+			
 private:
+    static TypeToNameMap typeToName;
+
 	/**
 	* Stuff do wyslania i nic wiecej
 	*/
