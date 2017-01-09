@@ -4,7 +4,7 @@ CCFLAGS = -g -Wall -Wextra -O3 -std=c++11
 LINK = g++
 LINKFLAGS = -g -Wall -Wextra -O3 -lrt -std=c++11
 
-OBJS = bin/timer.o bin/SocketPassive.o bin/SocketActive.o bin/SocketBase.o bin/subproblem.o bin/segment.o bin/solution_manager.o bin/worker_thread.o bin/server_manager.o bin/connection_main.o bin/connection_worker.o
+OBJS = bin/Message.o bin/timer.o bin/SocketPassive.o bin/SocketActive.o bin/SocketBase.o bin/subproblem.o bin/segment.o bin/solution_manager.o bin/worker_thread.o bin/server_manager.o bin/connection_main.o bin/connection_worker.o
 
 all: server_main server_worker
 
@@ -56,6 +56,9 @@ bin/connection_main.o: src/connection_main.cpp
 	
 	
 	
+	
+bin/Message.o: src/Message.cpp
+	$(CC) $(CCFLAGS) -c src/Message.cpp -o bin/Message.o	
 
 bin/SocketPassive.o: src/SocketPassive.cpp
 	$(CC) $(CCFLAGS) -c src/SocketPassive.cpp -o bin/SocketPassive.o

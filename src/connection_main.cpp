@@ -1,13 +1,17 @@
 #include "connection_main.h"
 
 #include <signal.h>
+#include <sstream>
 #include "solution_manager.h"
+#include "easylogging++.h"
 
 
 bool ConnectionMain::awaitingHello(Message message)
 {
     if(message.getSequence() != nextSequence
             || message.getTag() != MessageHello) {
+        LOG(INFO) << logPreamble() << message.str() << "UNEXPECTED sequence number or tag. Message IGNORED";
+
         return true;
     }
 
@@ -23,6 +27,8 @@ bool ConnectionMain::awaitingWorkACK(Message message)
 {
     auto seq = message.getSequence();
     if(seq != nextSequence || seq != nextSequence + 1) {
+        LOG(INFO) << logPreamble() << message.str() << "UNXEPECTED sequence number or tag. Message IGNORED";
+
         return true;
     }
 
@@ -31,15 +37,20 @@ bool ConnectionMain::awaitingWorkACK(Message message)
 
     auto tag = message.getTag();
     if(tag == MessageACK) {
-        responseTimer.unset();
+        LOG(INFO) << logPreamble() << "ACK RECEIVED. Subproblem ASSIGNED...";
+
         heartbeatTimer.set();
         solutionManager.assign(subproblemSegmentId, worker);
 
         stateHandler = &ConnectionMain::awaitingResult;
+
+        LOG(INFO) << logPreamble() << "Going to [AwaitingResult] state...";
     } else if(tag == MessageResult) {
         solutionManager.markSolved(message.getSegmentID(), message.getPointsHit());
         sendSubproblem();
     }
+
+    responseTimer.unset();
 
     return true;
 }
@@ -48,6 +59,8 @@ bool ConnectionMain::awaitingResult(Message message)
 {
     auto seq = message.getSequence();
     if(seq != nextSequence || message.getTag() != MessageResult) {
+        LOG(INFO) << logPreamble() << message.str() << "UNEXPECTED sequence number or tag. IGNORING message...";
+
         return true;
     }
 
@@ -64,7 +77,11 @@ bool ConnectionMain::standingBy(Message)
 {
     // wiadomości wysłane na skutek timeoutu po stronie serwera roboczego
     // powinny zostać obsłużone w handleMessage()
-    throw std::runtime_error("Worker cannot receive any messages while Standing By.");
+
+    std::string text("Worker cannot receive any messages while Standing By.");
+    LOG(FATAL) << logPreamble() << text;
+    
+    throw std::runtime_error(text);
 }
 
 void ConnectionMain::sendMessage(Message message, bool setTimer, bool resend)
@@ -72,7 +89,11 @@ void ConnectionMain::sendMessage(Message message, bool setTimer, bool resend)
     socket.sendMessage(message, worker.ip, worker.port);
     lastMessageSent = message;
 
+    LOG(INFO) << logPreamble() << message.str() << "SENT";
+
     if(setTimer) {
+        LOG(INFO) << logPreamble() << "Response timer SET";
+
         responseTimer.set();
     }
 
@@ -87,6 +108,8 @@ void ConnectionMain::sendSubproblem()
 
     auto subproblem = solutionManager.pop(worker);
     if(subproblem == nullptr) {
+        LOG(INFO) << logPreamble() << "No subproblem to assign. Going to [StandingBy] state...";
+
         sendMessage(Message(MessageACK, nextSequence), false);
         heartbeatTimer.set();
 
@@ -99,6 +122,27 @@ void ConnectionMain::sendSubproblem()
 
     sendMessage(Message(MessageWork, nextSequence, subproblem->getSegmentId(), subproblem->getPoints(), subproblem->getSide()));
     stateHandler = &ConnectionMain::awaitingWorkACK;
+
+    LOG(INFO) << logPreamble() << "Subproblem FOUND. Subproblem SENT";
+    LOG(INFO) << logPreamble() << "Going to [AwaitingResult] state...";
+}
+
+std::string ConnectionMain::logPreamble()
+{
+    std::ostringstream oss;
+    oss << "ConnectionMain(" << SocketBase::iptostr(worker.ip) << ", " << worker.port << "): ";
+
+    if(stateHandler == &ConnectionMain::awaitingHello) {
+        oss << "[AwaitingHello] ";
+    } else if(stateHandler == &ConnectionMain::awaitingWorkACK) {
+        oss << "[AwaitingWorkACK] ";
+    } else if(stateHandler == &ConnectionMain::awaitingResult) {
+        oss << "[AwaitingResult] ";
+    } else if(stateHandler == &ConnectionMain::standingBy) {
+        oss << "[StandingBy] ";
+    }
+
+    return oss.str();
 }
 
 ConnectionMain::~ConnectionMain()
@@ -138,12 +182,14 @@ bool ConnectionMain::handleTimeout()
             solutionManager.unassign(subproblemSegmentId);
         }
 
+        LOG(INFO) << logPreamble() << "Response TIMEOUT occurred. NO REMAINING timeouts. CLOSING connection..." << repeatCount;
+
         return false;
     }
 
     sendMessage(lastMessageSent, true, true);
 
-    responseTimer.set();
+    LOG(INFO) << logPreamble() << "Response TIMEOUT occurred. " << lastMessageSent << " RESENT. Timeouts REMAINING: " << repeatCount;
 
     return true;
 }
@@ -153,6 +199,8 @@ bool ConnectionMain::handleHeartbeatTimeout()
     if(stateHandler == &ConnectionMain::awaitingWorkACK || stateHandler == &ConnectionMain::awaitingResult) {
         solutionManager.unassign(subproblemSegmentId);
     }
+
+    LOG(INFO) << logPreamble() << "Heartbeat TIMEOUT occurred. CLOSING connection...";
 
     return false;
 }
@@ -179,13 +227,16 @@ bool ConnectionMain::isHeartbeatTimeoutExpired() const
 
 bool ConnectionMain::handleMessage(Message message)
 {
+    LOG(INFO) << logPreamble() << message.str() << " RECEIVED";
+
     auto tag = message.getTag();
     auto seq = message.getSequence();
 
     if(tag == MessageHeartbeat && heartbeatTimer.isRunning()) {
         socket.sendMessage(MessageHeartbeatACK, worker.ip, worker.port);
-
         heartbeatTimer.set();
+
+        LOG(INFO) << logPreamble() << message.str() << "Heartbeat RECEIVED. ACK sent. Heartbeat timer RESET";
     }
 
     if(tag == MessageInterrupt) {
@@ -193,11 +244,15 @@ bool ConnectionMain::handleMessage(Message message)
             solutionManager.unassign(subproblemSegmentId);
         }
 
+        LOG(INFO) << logPreamble() << message.str() << "RECEIVED. CLOSING connection...";
+
         return false;
     }
 
     // zignorowanie wiadomości o numerze sekw. niższym niż w ostatniej otrzymanej wiadomości
     if(seq < lastMessageRecv.getSequence()) {
+        LOG(INFO) << logPreamble() << "Message of too low sequence number RECEIVED. Message IGNORED";
+
         return true;
     }
 
@@ -205,6 +260,8 @@ bool ConnectionMain::handleMessage(Message message)
     if(seq == lastMessageRecv.getSequence() && tag == lastMessageRecv.getTag()) {
         bool setTimer = lastMessageSent.getTag() != MessageACK;
         sendMessage(lastMessageSent, setTimer, true);
+
+        LOG(INFO) << logPreamble() << "Last received message RECEIVED AGAIN. Message RESENT";
 
         return true;
     }
@@ -217,7 +274,10 @@ bool ConnectionMain::handleMessage(Message message)
 void ConnectionMain::assignSubproblem()
 {
     if(stateHandler != &ConnectionMain::standingBy) {
-        throw std::runtime_error("Worker can only be assigned a subproblem while Standing By.");
+        auto text = "Worker can only be assigned a subproblem while Standing By.";
+        LOG(FATAL) << logPreamble() << text;
+
+        throw std::runtime_error(text);
     }
 
     sendSubproblem();
@@ -226,11 +286,15 @@ void ConnectionMain::assignSubproblem()
 void ConnectionMain::sendInterrupt()
 {
 	 socket.sendMessage(Message(MessageInterrupt), worker.ip, worker.port);
+
+     LOG(INFO) << logPreamble() << "MessageInterrupt SENT";
 }
 
 void ConnectionMain::sendClose()
 {
     socket.sendMessage(Message(MessageClose, nextSequence), worker.ip, worker.port);
+
+    LOG(INFO) << logPreamble() << "MessageClose SENT";
 }
 
 SID ConnectionMain::getSID() const

@@ -1,6 +1,7 @@
 #ifndef CONNECTIONMAIN_H
 #define CONNECTIONMAIN_H
 
+#include <string>
 #include "server_manager.h"
 #include "connection_base.h"
 #include "SocketPassive.h"
@@ -41,8 +42,9 @@ class ConnectionMain : ConnectionBase
 protected:
     void sendMessage(Message message, bool setTimer = true, bool resend = false);
     void sendSubproblem();
+    std::string logPreamble();
 
-public:
+public:    
     ConnectionMain(SocketPassive& socket, SID worker);
     virtual ~ConnectionMain();
 

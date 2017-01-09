@@ -14,6 +14,8 @@
 #include <iostream>
 using namespace std;
 
+#include "easylogging++.h"
+
 #include "connection_main.h"
 #include "solution_manager.h"
 #include "server_manager.h"
@@ -32,6 +34,8 @@ const int SIGNAL_HBTIMEOUT = ConnectionMain::getHeartbeatTimerSignal();
 
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax);
 bool handleParameter(int64_t& value, char* szValue, string strParam, int64_t nMin, int64_t nMax);
+
+INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char* argv[])
 {
@@ -66,6 +70,9 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	
 	// =============================================
+	
+	el::Configurations conf("/home/mion/s/106/tkrakows/tin/distributed-pi/src/log.conf");
+    el::Loggers::reconfigureAllLoggers(conf);
 	
 	// maskowanie sygnałów odbieranych w pętli obsługi sygnałów, żeby nie zostały obsłużone domyślnie
 	sigset_t set;

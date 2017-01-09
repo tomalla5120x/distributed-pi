@@ -14,6 +14,8 @@
 
 using namespace std;
 
+#include "easylogging++.h"
+
 #include "worker_thread.h"
 #include "connection_worker.h"
 #include "SocketActive.h"
@@ -27,6 +29,8 @@ const int32_t MIN_PORT = 1;
 const int32_t MAX_PORT = (std::numeric_limits<uint16_t>::max());
 
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax);
+
+INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char* argv[])
 {
@@ -55,6 +59,9 @@ int main(int argc, char* argv[])
 	Port port = (Port)nPort;
 	
 	// ========================================
+	
+	el::Configurations conf("/home/mion/s/106/tkrakows/tin/distributed-pi/src/log.conf");
+    el::Loggers::reconfigureAllLoggers(conf);
 	
 	// maskowanie sygnałów odbieranych w pętli obsługi sygnałów, żeby nie zostały obsłużone domyślnie
 	sigset_t set;
