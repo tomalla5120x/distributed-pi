@@ -137,7 +137,7 @@ void SolutionManager::unassign(uint32_t segmentId)
         {
             if((*it)->getState() != ASSIGNED_PENDING && (*it)->getState() != ASSIGNED)
             {
-                throw runtime_error("Attempt to UNASSIGN problem which is neither ASSIGNED_PENDING nor ASSIGNED");
+                return;
             }
             (*it)->setState(UNASSIGNED);
             (*it)->resetSIDAssignedTo();
