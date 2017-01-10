@@ -12,7 +12,7 @@ class SolutionManager;
 class ConnectionMain : ConnectionBase
 {
     static const int timerSignal = SIGUSR1;
-    static const int heartbeatTimerSignal = SIGPOLL;
+    static const int heartbeatTimerSignal = SIGUSR2;
     static const int responseTimeoutMs = 3000;
     static const int heartbeatTimeoutMs = 3000;
     static const int maxRepeats = 5;

@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <signal.h>
 
-Timer::Timer(int signal, int timeout, bool oneshot): m_bOneShot(oneshot)
+Timer::Timer(int signal, int timeout, bool oneshot): m_bOneShot(oneshot), m_signal(signal)
 {
 	sigevent sev;
 	sev.sigev_notify = SIGEV_SIGNAL;
@@ -61,6 +61,6 @@ bool Timer::isRunning() const
 	
 	if(timer_gettime(m_timer, &its) == -1)
 		throw std::runtime_error("Error unsetting timer");
-		
+
 	return (its.it_value.tv_sec != 0 || its.it_value.tv_nsec != 0);
 }

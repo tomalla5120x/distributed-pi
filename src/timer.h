@@ -33,6 +33,7 @@ private:
 	timer_t m_timer;
 	int m_nSec;
 	int m_nNsec;
+	int m_signal;
 };
 
 #endif

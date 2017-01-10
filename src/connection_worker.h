@@ -12,7 +12,7 @@
 class ConnectionWorker : ConnectionBase
 {
     static const int timerSignal = SIGUSR1;
-    static const int heartbeatExpectTimerSignal = SIGPOLL;
+    static const int heartbeatExpectTimerSignal = SIGVTALRM;
     static const int heartbeatDelayTimerSignal = SIGALRM;
     static const int responseTimeoutMs = 3000;
     static const int heartbeatTimeoutMs = 5000;

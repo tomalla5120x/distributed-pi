@@ -46,6 +46,7 @@ bool ConnectionMain::awaitingWorkACK(Message message)
 
         stateHandler = &ConnectionMain::awaitingResult;
     } else if(tag == MessageResult) {
+    	solutionManager.assign(subproblemSegmentId, worker);
         solutionManager.markSolved(message.getSegmentID(), message.getPointsHit());
         sendSubproblem();
     }
@@ -123,7 +124,7 @@ void ConnectionMain::sendSubproblem()
     sendMessage(Message(MessageWork, nextSequence, subproblem->getSegmentId(), subproblem->getPoints(), subproblem->getSide()));
 
     CLOG(INFO, "connection") << logPreamble() << "Subproblem FOUND. Subproblem SENT";
-    CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [AwaitingResult] state...";
+    CLOG(INFO, "connection") << logPreamble() << "TRANSITION to [AwaitingWorkACK] state...";
 
     stateHandler = &ConnectionMain::awaitingWorkACK;
 }
@@ -159,7 +160,7 @@ ConnectionMain::~ConnectionMain()
 ConnectionMain::ConnectionMain(SocketPassive& socket, SID worker) :
     socket(socket), worker(worker),
     responseTimer(timerSignal, responseTimeoutMs, true),
-    heartbeatTimer(timerSignal, heartbeatTimeoutMs, true),
+    heartbeatTimer(heartbeatTimerSignal, heartbeatTimeoutMs, true),
     solutionManager(SolutionManager::getInstance())
 {
     CLOG(INFO, "connection") << logPreamble() << "INSTANTIATED.";
@@ -177,7 +178,7 @@ void ConnectionMain::stopTimeout()
 
 bool ConnectionMain::isTimeoutExpired() const
 {
-    return responseTimer.isRunning();
+    return !responseTimer.isRunning();
 }
 
 bool ConnectionMain::handleTimeout()
@@ -228,7 +229,7 @@ void ConnectionMain::resetHeartbeatTimeout()
 
 bool ConnectionMain::isHeartbeatTimeoutExpired() const
 {
-    return heartbeatTimer.isRunning();
+    return !heartbeatTimer.isRunning();
 }
 
 bool ConnectionMain::handleMessage(Message message)

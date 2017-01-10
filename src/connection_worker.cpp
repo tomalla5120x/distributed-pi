@@ -128,12 +128,12 @@ void ConnectionWorker::stopTimeout()
 
 bool ConnectionWorker::isTimeoutExpired() const
 {
-    return responseTimer.isRunning();
+    return !responseTimer.isRunning();
 }
 
 void ConnectionWorker::startHeartbeatTimeout()
 {
-    heartbeatTimer.isRunning();
+    heartbeatTimer.set();
 }
 
 void ConnectionWorker::stopHeartbeatTimeout()
@@ -148,7 +148,7 @@ void ConnectionWorker::resetHeartbeatTimeout()
 
 bool ConnectionWorker::isHeartbeatTimeoutExpired() const
 {
-    return heartbeatTimer.isRunning();
+    return !heartbeatTimer.isRunning();
 }
 
 bool ConnectionWorker::handleMessage(Message message)
