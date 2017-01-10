@@ -14,6 +14,8 @@
 
 using namespace std;
 
+#include "easylogging++.h"
+
 #include "worker_thread.h"
 #include "connection_worker.h"
 #include "SocketActive.h"
@@ -28,61 +30,70 @@ const int32_t MAX_PORT = (std::numeric_limits<uint16_t>::max());
 
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax);
 
+INITIALIZE_EASYLOGGINGPP
+
 int main(int argc, char* argv[])
 {
-	if(argc != 3)
-	{
-		cout << "Sposob wywolania programu: " << argv[0] << " <ip-address> <port>" << endl;
-		cout << "  * ip-address - Adres IP serwera glownego w standardowym dot-notation." << endl;
-		cout << "  * port       - Port na ktorym serwer glowny nasluchuje." << endl;
-		cout << "                 Liczba calkowita z przedzialu [" << MIN_PORT << ", " << MAX_PORT << "]." << endl;
+    if(argc != 3)
+    {
+        cout << "Sposob wywolania programu: " << argv[0] << " <ip-address> <port>" << endl;
+        cout << "  * ip-address - Adres IP serwera glownego w standardowym dot-notation." << endl;
+        cout << "  * port       - Port na ktorym serwer glowny nasluchuje." << endl;
+        cout << "                 Liczba calkowita z przedzialu [" << MIN_PORT << ", " << MAX_PORT << "]." << endl;
 		
-		return EXIT_FAILURE;
-	}
+        return EXIT_FAILURE;
+    }
 	
-	IPAddress ip;
+    IPAddress ip;
 	
-	if(!SocketBase::strtoip(argv[1], &ip))
-	{
-		cerr << "Podany adres IP jest niepoprawny." << endl;
-		return EXIT_FAILURE;
-	}
+    if(!SocketBase::strtoip(argv[1], &ip))
+    {
+        cerr << "Podany adres IP jest niepoprawny." << endl;
+        return EXIT_FAILURE;
+    }
 	
-	int nPort;
-	if(!handleParameter(nPort, argv[2], "port", MIN_PORT, MAX_PORT))
-		return EXIT_FAILURE;
+    int nPort;
+    if(!handleParameter(nPort, argv[2], "port", MIN_PORT, MAX_PORT))
+        return EXIT_FAILURE;
 	
-	Port port = (Port)nPort;
+    Port port = (Port)nPort;
 	
-	// ========================================
+    // ========================================
 	
-	// maskowanie sygnałów odbieranych w pętli obsługi sygnałów, żeby nie zostały obsłużone domyślnie
-	sigset_t set;
-	siginfo_t info;
-	sigemptyset(&set);
-	sigaddset(&set, SIGIO);
-	sigaddset(&set, SIGINT);
-	sigaddset(&set, SIGNAL_TIMEOUT);
-	sigaddset(&set, SIGNAL_HBTIMEOUT);
-	sigaddset(&set, SIGNAL_HB);
-	sigaddset(&set, SIGNAL_THREAD);
-	sigprocmask(SIG_BLOCK, &set, NULL);
+    el::Configurations logConf;
+    logConf.setToDefault();
+    logConf.set(el::Level::Info, el::ConfigurationType::Format, "%datetime{%Y-%M-%d %H:%m:%s,%g} [ connection %level] %msg");
+
+    el::Loggers::getLogger("connection");
+    el::Loggers::reconfigureLogger("connection", logConf);
 	
-	SocketActive socket(ip, port);
-	ConnectionWorker connection(socket);
+    // maskowanie sygnałów odbieranych w pętli obsługi sygnałów, żeby nie zostały obsłużone domyślnie
+    sigset_t set;
+    siginfo_t info;
+    sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGNAL_TIMEOUT);
+    sigaddset(&set, SIGNAL_HBTIMEOUT);
+    sigaddset(&set, SIGNAL_HB);
+    sigaddset(&set, SIGNAL_THREAD);
+    sigprocmask(SIG_BLOCK, &set, NULL);
 	
-	for(;;)
-	{
-		int signal = sigwaitinfo(&set, &info);
+    SocketActive socket(ip, port);
+    ConnectionWorker connection(socket);
+	
+    for(;;)
+    {
+        int signal = sigwaitinfo(&set, &info);
 		
-		if(signal == SIGIO)
-		{
-			for(;;)
-			{
-				Message message = socket.next();
+        if(signal == SIGIO)
+        {
+            for(;;)
+            {
+                Message message = socket.next();
 				
-				if(message.getTag() == NoMessage)
-					break;
+                if(message.getTag() == NoMessage)
+                    break;
 				
 				if(message.getTag() != MessageInvalid)
 					if(!connection.handleMessage(message))
@@ -116,24 +127,24 @@ int main(int argc, char* argv[])
 		}
 	}
 	
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax)
 {
-	try
-	{
-		value = stoi(szValue);
-		if(value >= nMin && value <= nMax)
-			return true;
-	} catch(invalid_argument)
-	{
-		cerr << "Parametr <" << strParam << "> jest niepoprawny." << endl;
-		return false;
-	} catch(out_of_range)
-	{}
+    try
+    {
+        value = stoi(szValue);
+        if(value >= nMin && value <= nMax)
+            return true;
+    } catch(invalid_argument)
+    {
+        cerr << "Parametr <" << strParam << "> jest niepoprawny." << endl;
+        return false;
+    } catch(out_of_range)
+    {}
 	
-	cerr << "Parametr <" << strParam << "> musi byc z zakresu [" << nMin << ", " << nMax << "]." << endl;
+    cerr << "Parametr <" << strParam << "> musi byc z zakresu [" << nMin << ", " << nMax << "]." << endl;
 	
-	return false;
+    return false;
 }
