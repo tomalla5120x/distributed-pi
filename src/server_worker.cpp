@@ -34,26 +34,45 @@ INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char* argv[])
 {
-    if(argc != 3)
+    bool verbose = false;
+    int verboseArgIndex = 0;
+    for(int i = 1; !verbose && i < argc; i++) {
+        if(strcmp(argv[i], "-v") == 0) {
+            verboseArgIndex = i;
+            verbose = true;
+        }
+    }
+
+    auto getArgAtPos = [argv, verbose, verboseArgIndex](int argPos) {
+        if(verbose && argPos >= verboseArgIndex) {
+            return argv[argPos + 1];
+        }
+
+        return argv[argPos];
+    };
+
+    if(argc != (verbose ? 4 : 3))
     {
         cout << "Sposob wywolania programu: " << argv[0] << " <ip-address> <port>" << endl;
         cout << "  * ip-address - Adres IP serwera glownego w standardowym dot-notation." << endl;
         cout << "  * port       - Port na ktorym serwer glowny nasluchuje." << endl;
         cout << "                 Liczba calkowita z przedzialu [" << MIN_PORT << ", " << MAX_PORT << "]." << endl;
+        cout << endl;
+        cout << "Dodanie posrod argumentow flagi -v uruchamia program w trybie Verbose." << endl;
 		
         return EXIT_FAILURE;
     }
 	
     IPAddress ip;
 	
-    if(!SocketBase::strtoip(argv[1], &ip))
+    if(!SocketBase::strtoip(getArgAtPos(1), &ip))
     {
         cerr << "Podany adres IP jest niepoprawny." << endl;
         return EXIT_FAILURE;
     }
 	
     int nPort;
-    if(!handleParameter(nPort, argv[2], "port", MIN_PORT, MAX_PORT))
+    if(!handleParameter(nPort, getArgAtPos(2), "port", MIN_PORT, MAX_PORT))
         return EXIT_FAILURE;
 	
     Port port = (Port)nPort;
@@ -63,6 +82,7 @@ int main(int argc, char* argv[])
     el::Configurations logConf;
     logConf.setToDefault();
     logConf.set(el::Level::Info, el::ConfigurationType::Format, "%datetime{%Y-%M-%d %H:%m:%s,%g} [ connection %level] %msg");
+    logConf.set(el::Level::Global, el::ConfigurationType::Enabled, verbose ? "true" : "false");
 
     el::Loggers::getLogger("connection");
     el::Loggers::reconfigureLogger("connection", logConf);

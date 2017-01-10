@@ -39,7 +39,24 @@ INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char* argv[])
 {
-    if(argc != 4 && argc != 5)
+    bool verbose = false;
+    int verboseArgIndex = 0;
+    for(int i = 1; !verbose && i < argc; i++) {
+        if(strcmp(argv[i], "-v") == 0) {
+            verboseArgIndex = i;
+            verbose = true;
+        }
+    }
+
+    auto getArgAtPos = [argv, verbose, verboseArgIndex](int argPos) {
+        if(verbose && argPos >= verboseArgIndex) {
+            return argv[argPos + 1];
+        }
+
+        return argv[argPos];
+    };
+
+    if(argc != (verbose ? 5 : 4) && argc != (verbose ? 6 : 5))
     {
         cout << "Sposob wywolania programu: " << argv[0] << " <side> <points> <digits> [port]" << endl;
         cout << "  * side   - Precyzuje na ile segmentow nalezy podzielic bok obszaru losowania." << endl;
@@ -52,6 +69,8 @@ int main(int argc, char* argv[])
         cout << "  * port   - Na jakim porcie serwer ma nasluchiwac." << endl;
         cout << "             Liczba calkowita z przedzialu [" << MIN_PORT << ", " << MAX_PORT << "]." << endl;
         cout << "             Parametr opcjonalny. W razie jego braku port jest przydzielany automatycznie." << endl;
+        cout << endl;
+        cout << "Dodanie posrod argumentow flagi -v uruchamia program w trybie Verbose." << endl;
 		
 		return EXIT_FAILURE;
 	}
@@ -59,19 +78,20 @@ int main(int argc, char* argv[])
 	int32_t nSide, nDigits, nPort=0;
 	int64_t nPoints;
 	
-	if(!handleParameter(nSide, argv[1], "side", MIN_SIDE, MAX_SIDE) ||
-		!handleParameter(nPoints, argv[2], "points", MIN_POINTS, MAX_POINTS) ||
-		!handleParameter(nDigits, argv[3], "digits", MIN_DIGITS, MAX_DIGITS))
-		return EXIT_FAILURE;
+	    if(!handleParameter(nSide, getArgAtPos(1), "side", MIN_SIDE, MAX_SIDE) ||
+        !handleParameter(nPoints, getArgAtPos(2), "points", MIN_POINTS, MAX_POINTS) ||
+        !handleParameter(nDigits, getArgAtPos(3), "digits", MIN_DIGITS, MAX_DIGITS))
+        return EXIT_FAILURE;
 	
-	if(argc == 5 && !handleParameter(nPort, argv[4], "port", MIN_PORT, MAX_PORT))
-		return EXIT_FAILURE;
+    if(argc == (verbose ? 6 : 5) && !handleParameter(nPort, getArgAtPos(4), "port", MIN_PORT, MAX_PORT))
+        return EXIT_FAILURE;
 	
 	// =============================================
 	
 	el::Configurations logConf;
     logConf.setToDefault();
     logConf.set(el::Level::Info, el::ConfigurationType::Format, "%datetime{%Y-%M-%d %H:%m:%s,%g} [ connection %level] %msg");
+    logConf.set(el::Level::Global, el::ConfigurationType::Enabled, verbose ? "true" : "false");
 
     el::Loggers::getLogger("connection");
     el::Loggers::reconfigureLogger("connection", logConf);
