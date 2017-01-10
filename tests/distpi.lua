@@ -2,7 +2,7 @@
 --port 60606 (SocketPassive(60606)); - musi byc staly
 --wybierz interfejs i capture using this filter: udp and port 60606
 
-distpi_port = 60606
+distpi_port = 50001
 distpi_proto = Proto("distpi", "Distributed PI")
 
 function distpi_proto.dissector(buffer, pinfo, tree)
@@ -19,7 +19,7 @@ function distpi_proto.dissector(buffer, pinfo, tree)
 	local subtree = tree:add(distpi_proto, buffer(), "Distributed PI Message")
 	msgtype = buffer(0,1):uint()
 	subtree:add(msgtype, "Message type: " .. msgtypes[msgtype])
-	if msgtype > 3 then
+	if msgtype > 2 then
 		subtree:add(buffer(1,4), "Sequence number: " .. buffer(1,4):uint())
 		if msgtype > 5 then
 			subtree:add(buffer(5, 8), "Points: " .. buffer(5,8):uint64())
