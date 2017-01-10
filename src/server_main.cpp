@@ -14,6 +14,8 @@
 #include <iostream>
 using namespace std;
 
+#include "easylogging++.h"
+
 #include "connection_main.h"
 #include "solution_manager.h"
 #include "server_manager.h"
@@ -33,29 +35,29 @@ const int SIGNAL_HBTIMEOUT = ConnectionMain::getHeartbeatTimerSignal();
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax);
 bool handleParameter(int64_t& value, char* szValue, string strParam, int64_t nMin, int64_t nMax);
 
+INITIALIZE_EASYLOGGINGPP
+
 int main(int argc, char* argv[])
 {
-	if(argc != 4 && argc != 5)
-	{
-		cout << "Sposob wywolania programu: " << argv[0] << " <side> <points> <digits> [port]" << endl;
-		cout << "  * side   - Precyzuje na ile segmentow nalezy podzielic bok obszaru losowania." << endl;
-		cout << "             Obszar zostanie podzielony na side^2 segmentow." << endl;
-		cout << "             Liczba calkowita z przedzialu [" << MIN_SIDE << ", " << MAX_SIDE << "]." << endl;
-		cout << "  * points - Ile punktow ma zostac wylosowanych w pojedynczym segmencie." << endl;
-		cout << "             Liczba calkowita z przedzialu [" << MIN_POINTS << ", " << MAX_POINTS << "]." << endl;
-		cout << "  * digits - Z dokladnoscia do ilu cyfr po przecinku nalezy wyprowadzic wynik." << endl;
-		cout << "             Liczba calkowita z przedzialu [" << MIN_DIGITS << ", " << MAX_DIGITS << "]." << endl;
-		cout << "  * port   - Na jakim porcie serwer ma nasluchiwac." << endl;
-		cout << "             Liczba calkowita z przedzialu [" << MIN_PORT << ", " << MAX_PORT << "]." << endl;
-		cout << "             Parametr opcjonalny. W razie jego braku port jest przydzielany automatycznie." << endl;
+    if(argc != 4 && argc != 5)
+    {
+        cout << "Sposob wywolania programu: " << argv[0] << " <side> <points> <digits> [port]" << endl;
+        cout << "  * side   - Precyzuje na ile segmentow nalezy podzielic bok obszaru losowania." << endl;
+        cout << "             Obszar zostanie podzielony na side^2 segmentow." << endl;
+        cout << "             Liczba calkowita z przedzialu [" << MIN_SIDE << ", " << MAX_SIDE << "]." << endl;
+        cout << "  * points - Ile punktow ma zostac wylosowanych w pojedynczym segmencie." << endl;
+        cout << "             Liczba calkowita z przedzialu [" << MIN_POINTS << ", " << MAX_POINTS << "]." << endl;
+        cout << "  * digits - Z dokladnoscia do ilu cyfr po przecinku nalezy wyprowadzic wynik." << endl;
+        cout << "             Liczba calkowita z przedzialu [" << MIN_DIGITS << ", " << MAX_DIGITS << "]." << endl;
+        cout << "  * port   - Na jakim porcie serwer ma nasluchiwac." << endl;
+        cout << "             Liczba calkowita z przedzialu [" << MIN_PORT << ", " << MAX_PORT << "]." << endl;
+        cout << "             Parametr opcjonalny. W razie jego braku port jest przydzielany automatycznie." << endl;
 		
 		return EXIT_FAILURE;
 	}
 	
 	int32_t nSide, nDigits, nPort=0;
 	int64_t nPoints;
-	
-	//bool handleParameter(int64_t& value, char* szValue, string& strParam, int64_t nMin, int64_t nMax)
 	
 	if(!handleParameter(nSide, argv[1], "side", MIN_SIDE, MAX_SIDE) ||
 		!handleParameter(nPoints, argv[2], "points", MIN_POINTS, MAX_POINTS) ||
@@ -66,6 +68,13 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	
 	// =============================================
+	
+	el::Configurations logConf;
+    logConf.setToDefault();
+    logConf.set(el::Level::Info, el::ConfigurationType::Format, "%datetime{%Y-%M-%d %H:%m:%s,%g} [ connection %level] %msg");
+
+    el::Loggers::getLogger("connection");
+    el::Loggers::reconfigureLogger("connection", logConf);
 	
 	// maskowanie sygnałów odbieranych w pętli obsługi sygnałów, żeby nie zostały obsłużone domyślnie
 	sigset_t set;
@@ -103,82 +112,82 @@ int main(int argc, char* argv[])
 	{
 		int signal = sigwaitinfo(&set, &info);
 		
-		if(signal == SIGIO)
-		{
-			for(;;)
-			{
-				IPAddress ip;
-				Port port;
+        if(signal == SIGIO)
+        {
+            for(;;)
+            {
+                IPAddress ip;
+                Port port;
 				
-				Message message = socket->nextMessage(&ip, &port);
+                Message message = socket->nextMessage(&ip, &port);
 				
-				if(message.getTag() == NoMessage)
-					break;
+                if(message.getTag() == NoMessage)
+                    break;
 				
-				if(message.getTag() != MessageInvalid)
-					serverManager.handleMessage(message, ip, port);
-			}
-		} else if(signal == SIGNAL_TIMEOUT)
-		{
-			serverManager.handleTimeout();
-		} else if(signal == SIGNAL_HBTIMEOUT)
-		{
-			serverManager.handleHeartbeatTimeout();
-		} else if(signal == SIGINT)
-		{
-			serverManager.handleInterrupt();
-			cout << "Interrupt." << endl;
-			return EXIT_FAILURE;
-		}
-	} while(!solutionManager.solved());
+                if(message.getTag() != MessageInvalid)
+                    serverManager.handleMessage(message, ip, port);
+            }
+        } else if(signal == SIGNAL_TIMEOUT)
+        {
+            serverManager.handleTimeout();
+        } else if(signal == SIGNAL_HBTIMEOUT)
+        {
+            serverManager.handleHeartbeatTimeout();
+        } else if(signal == SIGINT)
+        {
+            serverManager.handleInterrupt();
+            cout << "Interrupt." << endl;
+            return EXIT_FAILURE;
+        }
+    } while(!solutionManager.solved());
 	
-	serverManager.finalize();
-	socket->closeSocket();
+    serverManager.finalize();
+    socket->closeSocket();
 	
-	uint64_t a, b;
-	string strResult = solutionManager.getResult(&a, &b);
+    uint64_t a, b;
+    string strResult = solutionManager.getResult(&a, &b);
 	
-	cout << "Wyznaczone przyblizenie liczby PI: " << endl << endl;
-	cout << a << " / " << b << endl << endl;
-	cout << strResult << endl;
+    cout << "Wyznaczone przyblizenie liczby PI: " << endl << endl;
+    cout << a << " / " << b << endl << endl;
+    cout << strResult << endl;
 	
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
 bool handleParameter(int32_t& value, char* szValue, string strParam, int32_t nMin, int32_t nMax)
 {
-	try
-	{
-		value = stoi(szValue);
-		if(value >= nMin && value <= nMax)
-			return true;
-	} catch(invalid_argument)
-	{
-		cerr << "Parametr <" << strParam << "> jest niepoprawny." << endl;
-		return false;
-	} catch(out_of_range)
-	{}
+    try
+    {
+        value = stoi(szValue);
+        if(value >= nMin && value <= nMax)
+            return true;
+    } catch(invalid_argument)
+    {
+        cerr << "Parametr <" << strParam << "> jest niepoprawny." << endl;
+        return false;
+    } catch(out_of_range)
+    {}
 	
-	cerr << "Parametr <" << strParam << "> musi byc z zakresu [" << nMin << ", " << nMax << "]." << endl;
+    cerr << "Parametr <" << strParam << "> musi byc z zakresu [" << nMin << ", " << nMax << "]." << endl;
 	
-	return false;
+    return false;
 }
 
 bool handleParameter(int64_t& value, char* szValue, string strParam, int64_t nMin, int64_t nMax)
 {
-	try
-	{
-		value = stoll(szValue);
-		if(value >= nMin && value <= nMax)
-			return true;
-	} catch(invalid_argument)
-	{
-		cerr << "Parametr <" << strParam << "> jest niepoprawny." << endl;
-		return false;
-	} catch(out_of_range)
-	{}
+    try
+    {
+        value = stoll(szValue);
+        if(value >= nMin && value <= nMax)
+            return true;
+    } catch(invalid_argument)
+    {
+        cerr << "Parametr <" << strParam << "> jest niepoprawny." << endl;
+        return false;
+    } catch(out_of_range)
+    {}
 	
-	cerr << "Parametr <" << strParam << "> musi byc z zakresu [" << nMin << ", " << nMax << "]." << endl;
+    cerr << "Parametr <" << strParam << "> musi byc z zakresu [" << nMin << ", " << nMax << "]." << endl;
 	
-	return false;
+    return false;
 }

@@ -41,6 +41,7 @@ class ConnectionWorker : ConnectionBase
 
 protected:
     void sendMessage(Message message, bool setTimer = true, bool resend = false);
+    std::string logPreamble();
 
 public:
     ConnectionWorker(SocketActive& socket);
